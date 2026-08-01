@@ -1,7 +1,7 @@
 {
   "name": "EASA FTL Logbook",
   "short_name": "FTL Logbook",
-  "description": "Offline FTL-Planer mit synchroner UTC- und Ortszeit sowie ICAO-Zeitzonendatenbank",
+  "description": "FTL-Planer nach FAI OM-A Kapitel 7 mit Ruhezeitberechnung",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#071521",

@@ -1,18 +1,16 @@
-EASA FTL Logbook PWA 1.3.0
+EASA/FAI FTL Logbook PWA 1.4.0
+
+Berechnungsgrundlage: FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0, 08.11.2024.
 
 Neu:
-- Reporting und ON-Block können wahlweise in Ortszeit oder UTC eingegeben werden.
-- Die jeweils andere Zeit wird automatisch berechnet.
-- Datumswechsel und Sommer-/Winterzeit werden über die IANA-Zeitzone des ICAO-Flughafens berücksichtigt.
-- Die zuletzt bearbeitete Zeitart bleibt die führende Eingabe.
+- 13:00 h Basis-FDP nach OM-A, Sektorreduzierung und WOCL-Reduzierung
+- Regeln für geplante Verlängerung
+- Home Base und 48-Stunden-Auswahl für den WOCL-Bezug
+- Dienstende 15 Minuten nach ON-Block
+- Mindest-Ruhezeit Home Base / away sowie Zeitzonenregel
+- frühestes nächstes Reporting
+- Ruhezeiten in Archiv, CSV und PDF
 
-GitHub Pages:
-1. Alle Dateien dieser Version in das Repository hochladen und alte Dateien ersetzen.
-2. Besonders airports.json muss im selben Ordner wie index.html liegen.
-3. GitHub: Settings > Pages > Deploy from a branch > main > /(root).
-4. Nach dem Upload die Seite vollständig neu laden.
-5. Bei installierter PWA: App schließen und erneut öffnen; notfalls vom Home-Bildschirm entfernen und neu installieren.
+Nicht automatisch abgebildet: Split Duty, Heavy Crew, Standby, Positioning nach dem letzten operativen Sektor, Reduced Rest und Commander’s Discretion.
 
-Hinweis:
-Die App ist eine Rechen- und Dokumentationshilfe. Maßgeblich bleiben das genehmigte
-FTL-Schema, OM-A, Crew Control und die tatsächliche Fatigue-Situation.
+GitHub Pages: Alle Dateien ersetzen. airports.json muss neben index.html liegen. Danach PWA vollständig neu laden.
