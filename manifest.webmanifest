@@ -1,0 +1,17 @@
+{
+  "name": "EASA FTL Logbook",
+  "short_name": "FTL Logbook",
+  "description": "FTL-Rechner mit lokaler Speicherung und monatlichem PDF-Export",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#071521",
+  "theme_color": "#0b1f33",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
