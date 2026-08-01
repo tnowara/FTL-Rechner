@@ -1,11 +1,12 @@
 const $=id=>document.getElementById(id),KEY='ftl-logbook-records-v4';
 let currentResult=null,airports=new Map(),syncing=false;
+let calendarEditingId=null;
 let reportInputMode='utc',onBlockInputMode='utc',dutyEndInputMode='utc',dutyEndManual=false,editingId=null;
 
 const pad=n=>String(n).padStart(2,'0');
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
 for(let i=1;i<=10;i++){const o=document.createElement('option');o.value=i;o.textContent=i===1?'1 Sektor':`${i} Sektoren`;$('sectors').appendChild(o)}
-$('dutyDate').value=today();$('onBlockDate').value=today();$('monthFilter').value=today().slice(0,7);$('statisticsDate').value=today();
+$('dutyDate').value=today();$('onBlockDate').value=today();$('monthFilter').value=today().slice(0,7);$('statisticsDate').value=today();$('calendarMonth').value=today().slice(0,7);$('calendarEntryDate').value=today();
 
 function toMinutes(t){const [h,m]=String(t||'00:00').split(':').map(Number);return h*60+m}
 function formatDuration(v){if(!Number.isFinite(v))return '–';const s=v<0?'−':'';v=Math.abs(Math.round(v));return `${s}${Math.floor(v/60)}:${pad(v%60)} h`}
@@ -185,7 +186,7 @@ function saveRecord(){
   records.sort((a,b)=>a.reportUtc-b.reportUtc);setRecords(records);
   $('saveBtn').textContent=idx>=0?'Änderungen gespeichert ✓':'Gespeichert ✓';
   setTimeout(()=>{$('saveBtn').textContent=editingId?'Änderungen speichern':'Datensatz speichern'},1400);
-  renderArchive();renderDashboard();renderStatistics()
+  renderArchive();renderDashboard();renderStatistics();renderCalendar()
 }
 function setEditing(on){$('editBanner').classList.toggle('hidden',!on);$('saveBtn').textContent=on?'Änderungen speichern':'Datensatz speichern'}
 function switchView(id){document.querySelectorAll('.tab,.view').forEach(x=>x.classList.remove('active'));document.querySelector(`.tab[data-view="${id}"]`).classList.add('active');$(id).classList.add('active')}
@@ -207,7 +208,7 @@ function resetForm(){
   $('sectors').value='1';$('positioning').checked=true;$('awayOver48').checked=false;$('specialRule').value='basic';$('specialMinutes').value=0;$('blockTime').value='00:00';$('notes').value='';
   reportInputMode='utc';onBlockInputMode='utc';dutyEndInputMode='utc';dutyEndManual=false;updateSpecialFields();calculate()
 }
-function deleteRecord(id){if(confirm('Diesen Datensatz wirklich löschen?')){if(editingId===id)resetForm();setRecords(getRecords().filter(r=>r.id!==id));renderArchive();renderDashboard();renderStatistics()}}
+function deleteRecord(id){if(confirm('Diesen Datensatz wirklich löschen?')){if(editingId===id)resetForm();setRecords(getRecords().filter(r=>r.id!==id));renderArchive();renderDashboard();renderStatistics();renderCalendar()}}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 function recordSearchText(r){
   return [r.date,r.onBlockDate,r.flightRef,r.depCode,r.arrCode,r.homeCode,r.depName,r.arrName,r.notes,r.status,ruleName(r.specialRule||r.rule||'basic')].join(' ').toLocaleLowerCase('de');
@@ -251,6 +252,128 @@ function exportBackup(){
   const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.6.0',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
+}
+
+
+function isDutyRecord(r){return !r.entryType||r.entryType==='duty'}
+function isCalendarRecord(r){return !!r.entryType&&r.entryType!=='duty'}
+function calendarTypeName(type){
+  return ({off:'OFF',vacation:'Urlaub',sick:'Krank',standby:'Standby',training:'Training',other:'Sonstiges'})[type]||type
+}
+function calendarTypeClass(type){
+  return ({off:'off',vacation:'vacation',sick:'sick',standby:'standby',training:'other',other:'other'})[type]||'other'
+}
+function monthShift(month,delta){
+  const [y,m]=month.split('-').map(Number);
+  const d=new Date(Date.UTC(y,m-1+delta,1));
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}`
+}
+function calendarRecords(){
+  return getRecords()
+}
+function resetCalendarForm(date=today()){
+  calendarEditingId=null;
+  $('calendarFormTitle').textContent='Eintrag hinzufügen';
+  $('calendarEntryDate').value=date;
+  $('calendarEntryType').value='off';
+  $('calendarEntryDuration').value='00:00';
+  $('calendarEntryTitle').value='';
+  $('calendarEntryNotes').value='';
+  $('deleteCalendarEntryBtn').classList.add('hidden');
+  updateCalendarDurationVisibility();
+}
+function updateCalendarDurationVisibility(){
+  const type=$('calendarEntryType').value;
+  $('calendarDurationWrap').classList.toggle('hidden',!['standby','training','other'].includes(type));
+}
+function saveCalendarEntry(){
+  const date=$('calendarEntryDate').value;
+  if(!date)return alert('Bitte ein Datum auswählen.');
+  const type=$('calendarEntryType').value;
+  const records=getRecords();
+  const record={
+    id:calendarEditingId||((crypto.randomUUID&&crypto.randomUUID())||String(Date.now())),
+    entryType:type,
+    date,
+    title:$('calendarEntryTitle').value.trim()||calendarTypeName(type),
+    notes:$('calendarEntryNotes').value.trim(),
+    dutyMinutes:['standby','training','other'].includes(type)?toMinutes($('calendarEntryDuration').value):0,
+    blockMinutes:0,
+    createdAt:new Date().toISOString(),
+    savedAt:new Date().toISOString()
+  };
+  const idx=records.findIndex(r=>r.id===record.id);
+  if(idx>=0)records[idx]={...records[idx],...record};else records.push(record);
+  records.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  setRecords(records);
+  resetCalendarForm(date);
+  renderCalendar();
+  renderStatistics();
+  renderDashboard();
+}
+function editCalendarEntry(id){
+  const r=getRecords().find(x=>x.id===id);
+  if(!r)return;
+  if(isDutyRecord(r)){editRecord(id);return}
+  calendarEditingId=id;
+  $('calendarFormTitle').textContent='Eintrag bearbeiten';
+  $('calendarEntryDate').value=r.date||today();
+  $('calendarEntryType').value=r.entryType||'other';
+  $('calendarEntryDuration').value=`${pad(Math.floor((r.dutyMinutes||0)/60))}:${pad((r.dutyMinutes||0)%60)}`;
+  $('calendarEntryTitle').value=r.title||'';
+  $('calendarEntryNotes').value=r.notes||'';
+  $('deleteCalendarEntryBtn').classList.remove('hidden');
+  updateCalendarDurationVisibility();
+  window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+}
+function deleteCalendarEntry(){
+  if(!calendarEditingId)return;
+  if(confirm('Diesen Kalendereintrag wirklich löschen?')){
+    setRecords(getRecords().filter(r=>r.id!==calendarEditingId));
+    resetCalendarForm($('calendarEntryDate').value||today());
+    renderCalendar();renderStatistics();renderDashboard();
+  }
+}
+function renderCalendar(){
+  const month=$('calendarMonth').value||today().slice(0,7);
+  const [year,mon]=month.split('-').map(Number);
+  const first=new Date(Date.UTC(year,mon-1,1));
+  const daysInMonth=new Date(Date.UTC(year,mon,0)).getUTCDate();
+  const offset=(first.getUTCDay()+6)%7;
+  const grid=$('calendarGrid');grid.innerHTML='';
+  for(let i=0;i<offset;i++){const blank=document.createElement('div');blank.className='calendar-day blank';grid.appendChild(blank)}
+  const records=calendarRecords().filter(r=>r.date&&r.date.startsWith(month));
+  for(let day=1;day<=daysInMonth;day++){
+    const date=`${year}-${pad(mon)}-${pad(day)}`;
+    const cell=document.createElement('div');cell.className='calendar-day';
+    if(date===today())cell.classList.add('today');
+    const head=document.createElement('button');head.type='button';head.className='calendar-date';head.textContent=day;
+    head.onclick=()=>{resetCalendarForm(date);$('calendarEntryDate').scrollIntoView({behavior:'smooth',block:'center'})};
+    cell.appendChild(head);
+    const dayRecords=records.filter(r=>r.date===date).sort((a,b)=>isDutyRecord(a)?-1:1);
+    dayRecords.forEach(r=>{
+      const item=document.createElement('button');item.type='button';
+      const type=isDutyRecord(r)?'duty':calendarTypeClass(r.entryType);
+      item.className=`calendar-item ${type}`;
+      if(isDutyRecord(r)){
+        item.innerHTML=`<strong>${escapeHtml(r.depCode||'Duty')}${r.arrCode?'–'+escapeHtml(r.arrCode):''}</strong><span>${escapeHtml(r.flightRef||'')} ${r.plannedFdp?formatDuration(r.plannedFdp):''}</span>`;
+      }else{
+        item.innerHTML=`<strong>${escapeHtml(r.title||calendarTypeName(r.entryType))}</strong><span>${r.dutyMinutes?formatDuration(r.dutyMinutes):''}</span>`;
+      }
+      item.onclick=()=>editCalendarEntry(r.id);
+      cell.appendChild(item);
+    });
+    grid.appendChild(cell);
+  }
+  const dutyDays=new Set(records.filter(isDutyRecord).map(r=>r.date)).size;
+  const offDays=records.filter(r=>r.entryType==='off').length;
+  const vacation=records.filter(r=>r.entryType==='vacation').length;
+  const sick=records.filter(r=>r.entryType==='sick').length;
+  $('calendarDutyDays').textContent=dutyDays;
+  $('calendarOffDays').textContent=`${offDays} / 7`;
+  $('calendarOffDays').className=offDays>=7?'ok-text':'warn-text';
+  $('calendarVacationDays').textContent=vacation;
+  $('calendarSickDays').textContent=sick;
 }
 
 function statisticsSnapshot(dateString){
@@ -318,18 +441,18 @@ async function importBackupFile(file){
       const existing=getRecords(),map=new Map(existing.map(r=>[r.id,r]));
       imported.forEach(r=>{const id=r.id||`import-${Date.now()}-${Math.random()}`;map.set(id,{...r,id})});result=[...map.values()];
     }
-    result.sort((a,b)=>(a.reportUtc||0)-(b.reportUtc||0));setRecords(result);renderArchive();renderDashboard();renderStatistics();showBackupMessage(`${imported.length} Datensätze erfolgreich importiert.`, 'ok');
+    result.sort((a,b)=>(a.reportUtc||0)-(b.reportUtc||0));setRecords(result);renderArchive();renderDashboard();renderStatistics();renderCalendar();showBackupMessage(`${imported.length} Datensätze erfolgreich importiert.`, 'ok');
   }catch(e){showBackupMessage(`Import fehlgeschlagen: ${e.message}`,'danger')}
 }
 function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function exportCSV(){
-  const month=$('monthFilter').value,rs=getRecords().filter(r=>r.date&&r.date.startsWith(month));if(!rs.length)return alert('Keine Datensätze in diesem Monat.');
+  const month=$('monthFilter').value,rs=getRecords().filter(r=>isDutyRecord(r)&&r.date&&r.date.startsWith(month));if(!rs.length)return alert('Keine Duty-Datensätze in diesem Monat.');
   const rows=[['Datum','Flug','Start','Ziel','Home Base','Report UTC','ON-Block UTC','Dienstende UTC','FDP Min','Block Min','Sonderregel','Limit Min','Duty Min','Ruhezeit Min','Frühestes Reporting UTC','Status','Notiz'],...rs.map(r=>[r.date,r.flightRef,r.depCode,r.arrCode,r.homeCode,new Date(r.reportUtc).toISOString(),new Date(r.onUtc).toISOString(),new Date(r.dutyEnd).toISOString(),r.plannedFdp,r.blockMinutes||0,ruleName(r.specialRule||r.rule||'basic'),r.limit,r.dutyMinutes,r.minimumRest,new Date(r.earliestNextReport).toISOString(),r.status,r.notes])];
   const csv='\ufeff'+rows.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\r\n');downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),`FTL_${month}.csv`)
 }
 function pdfEscape(s){return String(s??'').replace(/[–—]/g,'-').replace(/…/g,'...').replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/[\\()]/g,m=>'\\'+m).replace(/[\r\n]+/g,' ')}
 function exportPDF(){
-  const month=$('monthFilter').value,rs=getRecords().filter(r=>r.date&&r.date.startsWith(month));if(!rs.length)return alert('Keine Datensätze in diesem Monat.');
+  const month=$('monthFilter').value,rs=getRecords().filter(r=>isDutyRecord(r)&&r.date&&r.date.startsWith(month));if(!rs.length)return alert('Keine Duty-Datensätze in diesem Monat.');
   const [y,m]=month.split('-');let lines=[`FTL Monatsübersicht ${m}/${y}`,'FAI OM-A Ch. 7, Issue 5, Rev. 0, 08.11.2024','',`Datensätze: ${rs.length}   FDP gesamt: ${formatDuration(rs.reduce((s,r)=>s+(r.plannedFdp||0),0))}`,''];
   for(const r of rs){lines.push(`${formatDate(r.date)}  ${r.depCode}-${r.arrCode}  ${r.flightRef||''}`);lines.push(`Report ${formatUtc(r.reportUtc)}   ON-Block ${formatUtc(r.onUtc)}`);lines.push(`Dienstende ${formatUtc(r.dutyEnd)}   Regel: ${ruleName(r.specialRule||r.rule||'basic')}`);lines.push(`FDP ${formatDuration(r.plannedFdp)}  Block ${r.blockMinutes?formatDuration(r.blockMinutes):'-'}  Limit ${formatDuration(r.limit)}  Duty ${formatDuration(r.dutyMinutes)}`);lines.push(`Min. Rest ${formatDuration(r.minimumRest)}  Next report ${formatUtc(r.earliestNextReport)}`);lines.push(`Status: ${r.status}`);if(r.notes)lines.push(`Notiz: ${r.notes}`);lines.push('')}
   const pages=[];while(lines.length)pages.push(lines.splice(0,41));const objs=[];objs[1]='<< /Type /Catalog /Pages 2 0 R >>';const kids=[];let obj=3;
@@ -348,14 +471,22 @@ function bind(){
   $('specialRule').addEventListener('change',()=>{updateSpecialFields();calculate()});
   ['homeBaseIcao','flightRef','sectors','positioning','awayOver48','specialMinutes','extensionRestMode','augmentedCrew','standbyFacility','reducedRestMinutes','blockTime','notes'].forEach(id=>$(id).addEventListener('input',calculate));
   $('saveBtn').onclick=saveRecord;$('resetBtn').onclick=resetForm;$('cancelEditBtn').onclick=resetForm;$('monthFilter').onchange=renderArchive;$('archiveSearch').addEventListener('input',renderArchive);$('pdfBtn').onclick=exportPDF;$('csvBtn').onclick=exportCSV;
-  $('newDutyBtn').onclick=()=>{resetForm();switchView('entryView')};$('openArchiveBtn').onclick=()=>{switchView('archiveView');renderArchive()};$('openStatisticsBtn').onclick=()=>{switchView('statisticsView');renderStatistics()};$('statisticsDate').addEventListener('change',renderStatistics);$('archiveBackupBtn').onclick=()=>{switchView('dashboardView');setTimeout(()=>$('backupExportBtn').scrollIntoView({behavior:'smooth',block:'center'}),50)};
+  $('newDutyBtn').onclick=()=>{resetForm();switchView('entryView')};
+  if($('openCalendarBtn'))$('openCalendarBtn').onclick=()=>{switchView('calendarView');renderCalendar()};
+  $('calendarMonth').addEventListener('change',renderCalendar);
+  $('prevMonthBtn').onclick=()=>{$('calendarMonth').value=monthShift($('calendarMonth').value,-1);renderCalendar()};
+  $('nextMonthBtn').onclick=()=>{$('calendarMonth').value=monthShift($('calendarMonth').value,1);renderCalendar()};
+  $('newCalendarEntryBtn').onclick=()=>resetCalendarForm($('calendarMonth').value+'-01');
+  $('calendarEntryType').addEventListener('change',updateCalendarDurationVisibility);
+  $('saveCalendarEntryBtn').onclick=saveCalendarEntry;
+  $('deleteCalendarEntryBtn').onclick=deleteCalendarEntry;$('openArchiveBtn').onclick=()=>{switchView('archiveView');renderArchive()};$('openStatisticsBtn').onclick=()=>{switchView('statisticsView');renderStatistics()};$('statisticsDate').addEventListener('change',renderStatistics);$('archiveBackupBtn').onclick=()=>{switchView('dashboardView');setTimeout(()=>$('backupExportBtn').scrollIntoView({behavior:'smooth',block:'center'}),50)};
   $('backupExportBtn').onclick=exportBackup;$('backupImportBtn').onclick=()=>$('backupFileInput').click();$('backupFileInput').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)importBackupFile(f);e.target.value=''})
-  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{switchView(t.dataset.view);if(t.dataset.view==='archiveView')renderArchive();if(t.dataset.view==='statisticsView')renderStatistics()})
+  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{switchView(t.dataset.view);if(t.dataset.view==='archiveView')renderArchive();if(t.dataset.view==='statisticsView')renderStatistics();if(t.dataset.view==='calendarView')renderCalendar()})
 }
 async function init(){
   bind();updateSpecialFields();setSyncBadge('report','utc');setSyncBadge('onBlock','utc');
   try{const data=await fetch('airports.json').then(r=>{if(!r.ok)throw new Error('airports.json');return r.json()});airports=new Map(data.map(a=>[a.i,a]));calculate()}
   catch(e){showStatus('DATENBANKFEHLER','danger','airports.json konnte nicht geladen werden.')}
-  renderArchive();renderDashboard();renderStatistics()
+  renderArchive();renderDashboard();renderStatistics();renderCalendar()
 }
 let deferredPrompt;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').hidden=false});$('installBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('installBtn').hidden=true};if('serviceWorker'in navigator)navigator.serviceWorker.register('service-worker.js');init();
