@@ -1,19 +1,18 @@
-FAI FTL Logbook PWA 1.6.0
+FAI FTL Logbook PWA 1.7.1
 
-Neu:
-- Dashboard als Startseite mit letztem Status, nächstem Reporting, Monats-FDP und letzten Diensten.
-- Vollständiges JSON-Backup aller lokal gespeicherten Datensätze.
-- Backup-Import wahlweise ergänzend oder als vollständiger Ersatz.
-- Suchfunktion im Monatsarchiv über Flug/Kennzeichen, ICAO, Notiz, Status und Sonderregelung.
-- Kompaktere Auswertung: Reporting, ON-Block und Dienstende wurden aus den Ergebnis-Karten entfernt.
-- Datensätze bleiben weiterhin bearbeitbar.
-- Bestehende Datensätze aus Version 1.5 bleiben erhalten.
-
-GitHub Pages:
-1. Alle Dateien hochladen und die vorhandenen Dateien ersetzen.
-2. airports.json muss im selben Ordner wie index.html liegen.
-3. Nach dem Deployment die Seite vollständig neu laden.
-4. Bei einer installierten PWA die App schließen und neu öffnen; notfalls neu installieren.
+Änderung gegenüber Version 1.7.0:
+- WOCL-Auswertung und Anzahl/Verteilung der Sonderregelungen sind jetzt in einem
+  standardmäßig eingeklappten Bereich „Erweiterte Statistiken“ untergebracht.
+- Die operativ wichtigen Grenzwerte bleiben sofort sichtbar:
+  Duty 7 Tage, Duty 28 Tage, Block 28 Tage und Block Kalenderjahr.
+- Dienste im 28-Tage-Zeitraum und fehlende Blockzeitangaben bleiben ebenfalls
+  direkt sichtbar.
+- Keine Änderung an der zugrunde liegenden Berechnungslogik oder an gespeicherten Daten.
 
 Grundlage:
 FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0, 08.11.2024.
+
+GitHub Pages:
+Alle Dateien dieser Version hochladen und die bisherigen Dateien ersetzen.
+airports.json muss im selben Ordner wie index.html liegen.
+Danach die Seite vollständig neu laden.

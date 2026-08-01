@@ -20,6 +20,7 @@
 <nav class="tabs" aria-label="Navigation">
   <button class="tab active" data-view="dashboardView">Dashboard</button>
   <button class="tab" data-view="entryView">Eingabe</button>
+  <button class="tab" data-view="statisticsView">Statistik</button>
   <button class="tab" data-view="archiveView">Archiv</button>
 </nav>
 
@@ -65,6 +66,19 @@
     </div>
     <div id="dashboardEmpty" class="empty">Noch keine Datensätze gespeichert.</div>
     <div id="recentRecords" class="recent-list"></div>
+  </section>
+
+
+  <section class="card">
+    <div class="section-head">
+      <div><div class="eyebrow">Kumulative Grenzen</div><h3>Stand heute</h3></div>
+      <button id="openStatisticsBtn" class="ghost small-btn">Statistik öffnen</button>
+    </div>
+    <div class="limit-grid compact-limits">
+      <div class="limit-card"><div class="limit-head"><span>Duty 7 Tage</span><strong id="dashDuty7">0:00 / 60:00 h</strong></div><div class="progress-track"><div id="dashDuty7Bar" class="progress-fill"></div></div></div>
+      <div class="limit-card"><div class="limit-head"><span>Duty 28 Tage</span><strong id="dashDuty28">0:00 / 190:00 h</strong></div><div class="progress-track"><div id="dashDuty28Bar" class="progress-fill"></div></div></div>
+      <div class="limit-card"><div class="limit-head"><span>Block 28 Tage</span><strong id="dashBlock28">0:00 / 100:00 h</strong></div><div class="progress-track"><div id="dashBlock28Bar" class="progress-fill"></div></div></div>
+    </div>
   </section>
 
   <section class="card">
@@ -212,6 +226,10 @@
       <div class="grid details-grid">
         <label class="check"><input id="positioning" type="checkbox" checked><span>Positioning nach Reporting vor dem operativen Flug</span></label>
         <label class="check"><input id="awayOver48" type="checkbox"><span>Mehr als 48 Stunden außerhalb der Home-Base-Zeitzone</span></label>
+        <label>Blockzeit gesamt
+          <input id="blockTime" type="time" value="00:00" step="60">
+          <small>Optional; Summe aller operativen Blockzeiten dieses Datensatzes.</small>
+        </label>
         <label>Notiz<textarea id="notes" rows="3" placeholder="Besonderheiten, Crew Control, Delay …"></textarea></label>
       </div>
     </details>
@@ -240,6 +258,88 @@
   </section>
 </section>
 
+
+<section id="statisticsView" class="view">
+  <section class="card">
+    <div class="archive-head">
+      <div><div class="eyebrow">OM-A Grenzwerte</div><h2>Kumulative Statistik</h2></div>
+      <label>Stichtag<input id="statisticsDate" type="date"></label>
+    </div>
+    <p class="muted-copy">Die rollierenden Zeiträume enden am gewählten Stichtag. Es werden ausschließlich gespeicherte Datensätze berücksichtigt.</p>
+  </section>
+
+  <section class="limit-grid">
+    <article class="card limit-card">
+      <div class="limit-head"><span>Duty 7 Tage</span><strong id="statDuty7Value">0:00 h</strong></div>
+      <div class="progress-track"><div id="statDuty7Bar" class="progress-fill"></div></div>
+      <div class="limit-foot"><span id="statDuty7Period">–</span><strong>Limit 60:00 h</strong></div>
+    </article>
+    <article class="card limit-card">
+      <div class="limit-head"><span>Duty 28 Tage</span><strong id="statDuty28Value">0:00 h</strong></div>
+      <div class="progress-track"><div id="statDuty28Bar" class="progress-fill"></div></div>
+      <div class="limit-foot"><span id="statDuty28Period">–</span><strong>Limit 190:00 h</strong></div>
+    </article>
+    <article class="card limit-card">
+      <div class="limit-head"><span>Block 28 Tage</span><strong id="statBlock28Value">0:00 h</strong></div>
+      <div class="progress-track"><div id="statBlock28Bar" class="progress-fill"></div></div>
+      <div class="limit-foot"><span id="statBlock28Period">–</span><strong>Limit 100:00 h</strong></div>
+    </article>
+    <article class="card limit-card">
+      <div class="limit-head"><span>Block Kalenderjahr</span><strong id="statBlockYearValue">0:00 h</strong></div>
+      <div class="progress-track"><div id="statBlockYearBar" class="progress-fill"></div></div>
+      <div class="limit-foot"><span id="statBlockYearPeriod">–</span><strong>Limit 900:00 h</strong></div>
+    </article>
+  </section>
+
+  <section class="dashboard-grid statistics-summary">
+    <article class="card">
+      <div class="eyebrow">Dienste im 28-Tage-Zeitraum</div>
+      <div id="statDutyCount" class="dashboard-value">0</div>
+      <span class="muted-line">gespeicherte Datensätze</span>
+    </article>
+    <article class="card">
+      <div class="eyebrow">Fehlende Blockzeiten</div>
+      <div id="statMissingBlock" class="dashboard-value">0</div>
+      <span class="muted-line">Datensätze im Kalenderjahr</span>
+    </article>
+  </section>
+
+  <details class="card advanced-stats">
+    <summary>
+      <span>
+        <span class="eyebrow">Optional</span>
+        <strong>Erweiterte Statistiken</strong>
+      </span>
+      <span class="summary-hint">WOCL und Sonderregelungen</span>
+    </summary>
+
+    <div class="dashboard-grid advanced-stat-grid">
+      <article class="inner-stat">
+        <div class="eyebrow">WOCL</div>
+        <div id="statWoclHours" class="dashboard-value">0:00 h</div>
+        <span id="statWoclCount" class="muted-line">0 betroffene Dienste</span>
+      </article>
+      <article class="inner-stat">
+        <div class="eyebrow">Sonderregelungen</div>
+        <div id="statSpecialCount" class="dashboard-value">0</div>
+        <span class="muted-line">im 28-Tage-Zeitraum</span>
+      </article>
+    </div>
+
+    <div class="advanced-section">
+      <div class="section-head">
+        <div><div class="eyebrow">Verteilung</div><h3>Sonderregelungen im Kalenderjahr</h3></div>
+      </div>
+      <div id="specialRuleStats" class="stats-list"></div>
+    </div>
+  </details>
+
+  <section class="card warning-card">
+    <h3>Noch nicht automatisch berechenbar</h3>
+    <p>Die vorgeschriebenen sieben lokalen dienstfreien Tage pro Monat und 96 lokalen dienstfreien Tage pro Kalenderjahr können aus reinen Duty-Datensätzen nicht sicher abgeleitet werden. Dafür werden in der geplanten Kalender-Version eigene Einträge für OFF, Urlaub, Krankheit und sonstige freie Tage benötigt.</p>
+  </section>
+</section>
+
 <section id="archiveView" class="view">
   <section class="card">
     <div class="archive-head">
@@ -252,6 +352,7 @@
     <div class="summary-grid">
       <div class="metric"><span>Datensätze</span><strong id="monthCount">0</strong></div>
       <div class="metric"><span>FDP gesamt</span><strong id="monthFdp">0:00 h</strong></div>
+      <div class="metric"><span>Block gesamt</span><strong id="monthBlock">0:00 h</strong></div>
     </div>
     <div class="action-row">
       <button id="pdfBtn" class="primary">Monat als PDF exportieren</button>
@@ -263,7 +364,7 @@
     <div id="emptyState" class="empty">Für diesen Monat sind keine Datensätze gespeichert.</div>
     <div class="table-wrap">
       <table id="recordsTable">
-        <thead><tr><th>Datum</th><th>Flug</th><th>Report</th><th>ON-Block</th><th>FDP</th><th>Regel</th><th>Ruhezeit</th><th>Aktionen</th></tr></thead>
+        <thead><tr><th>Datum</th><th>Flug</th><th>Report</th><th>ON-Block</th><th>FDP</th><th>Block</th><th>Regel</th><th>Ruhezeit</th><th>Aktionen</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -275,7 +376,7 @@
   <p>Berechnung nach FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0 vom 08.11.2024. Bei genehmigungs-, ereignis- oder nachweispflichtigen Sonderregeln zeigt die App zusätzliche Warnhinweise; sie ersetzt keine Freigabe durch Crew Control, Commander oder LBA.</p>
 </section>
 </main>
-<footer>Version 1.6.0 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
+<footer>Version 1.7.1 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
 <script src="app.js"></script>
 </body>
 </html>
