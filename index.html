@@ -390,6 +390,16 @@
       <div class="progress-track"><div id="statBlockYearBar" class="progress-fill"></div></div>
       <div class="limit-foot"><span id="statBlockYearPeriod">–</span><strong>Limit 900:00 h</strong></div>
     </article>
+    <article class="card limit-card">
+      <div class="limit-head"><span>Local Days Free im Monat</span><strong id="statOffMonthValue">0 / 7</strong></div>
+      <div class="progress-track"><div id="statOffMonthBar" class="progress-fill"></div></div>
+      <div class="limit-foot"><span id="statOffMonthPeriod">–</span><strong>Mindestens 7</strong></div>
+    </article>
+    <article class="card limit-card">
+      <div class="limit-head"><span>Local Days Free im Kalenderjahr</span><strong id="statOffYearValue">0 / 96</strong></div>
+      <div class="progress-track"><div id="statOffYearBar" class="progress-fill"></div></div>
+      <div class="limit-foot"><span id="statOffYearPeriod">–</span><strong>Mindestens 96</strong></div>
+    </article>
   </section>
 
   <section class="dashboard-grid statistics-summary">
@@ -436,8 +446,8 @@
   </details>
 
   <section class="card warning-card">
-    <h3>Noch nicht automatisch berechenbar</h3>
-    <p>Die vorgeschriebenen sieben lokalen dienstfreien Tage pro Monat und 96 lokalen dienstfreien Tage pro Kalenderjahr können aus reinen Duty-Datensätzen nicht sicher abgeleitet werden. Dafür werden in der geplanten Kalender-Version eigene Einträge für OFF, Urlaub, Krankheit und sonstige freie Tage benötigt.</p>
+    <h3>Berechnung der Local Days Free</h3>
+    <p>Gezählt werden eindeutige Kalendertage, die im Kalender ausdrücklich als „Local Day Free / OFF“ gespeichert sind. Die Monats- und Jahreswerte werden anhand des gewählten Statistik-Stichtags berechnet. Die Voraussetzung, dass ein Local Day Free zwei lokale Nächte umfasst, bleibt eine deklarative Eingabe und wird nicht aus Uhrzeiten rekonstruiert.</p>
   </section>
 </section>
 
@@ -477,7 +487,7 @@
   <p>Berechnung nach FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0 vom 08.11.2024. Bei genehmigungs-, ereignis- oder nachweispflichtigen Sonderregeln zeigt die App zusätzliche Warnhinweise; sie ersetzt keine Freigabe durch Crew Control, Commander oder LBA.</p>
 </section>
 </main>
-<footer>Version 1.9.2 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
+<footer>Version 1.9.3 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
 <script src="app.js"></script>
 </body>
 </html>

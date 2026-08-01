@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.2",
+  "appVersion": "1.9.3",
   "lastUpdated": "2026-08-01",
-  "notes": "Navigation dauerhaft sichtbar; Vorbereitung auf geräteübergreifende Synchronisation"
+  "notes": "Berechnung der Local Days Free: 7 pro Monat und 96 pro Kalenderjahr"
 }

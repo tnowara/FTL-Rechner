@@ -172,3 +172,8 @@
     top:calc(66px + env(safe-area-inset-top));
   }
 }
+
+/* Version 1.9.3: Mindestwerte für Local Days Free */
+.limit-card .progress-fill.danger{background:var(--danger)}
+.limit-card .progress-fill.warn{background:var(--warn)}
+.limit-card .progress-fill.ok{background:var(--ok)}

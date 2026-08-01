@@ -1,4 +1,4 @@
-const CACHE="ftl-logbook-v1.9.2";
+const CACHE="ftl-logbook-v1.9.3";
 const ASSETS=["./","index.html","styles.css","app.js","app-version.json","airports.json","manifest.webmanifest","icon.svg"];
 
 self.addEventListener("install",event=>{

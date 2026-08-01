@@ -18,6 +18,15 @@ function recordDateMs(r){return Number.isFinite(r.reportUtc)?r.reportUtc:dateToU
 function inDateWindow(r,startMs,endMs){const t=recordDateMs(r);return Number.isFinite(t)&&t>=startMs&&t<endMs}
 function progressState(value,limit){const ratio=limit?value/limit:0;return ratio>1?'danger':ratio>=.9?'warn':'ok'}
 function setProgress(barId,value,limit){const bar=$(barId);if(!bar)return;const pct=Math.min(100,Math.max(0,(value/limit)*100));bar.style.width=`${pct}%`;bar.className=`progress-fill ${progressState(value,limit)}`}
+function setMinimumProgress(barId,value,target){
+  const bar=$(barId);if(!bar)return;
+  const pct=Math.min(100,Math.max(0,(value/target)*100));
+  bar.style.width=`${pct}%`;
+  bar.className=`progress-fill ${value>=target?'ok':value>=target*.75?'warn':'danger'}`;
+}
+function uniqueOffDates(records){
+  return [...new Set(records.filter(r=>r.entryType==='off'&&r.date).map(r=>r.date))];
+}
 
 function datePartsUtc(ms){const d=new Date(ms);return {date:`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`,time:`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`}}
 function formatUtc(ms){if(!Number.isFinite(ms))return '–';const p=datePartsUtc(ms);return `${formatDate(p.date)} ${p.time} UTC`}
@@ -278,7 +287,7 @@ function renderDashboard(){
   });
 }
 function exportBackup(){
-  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.2',exportedAt:new Date().toISOString(),records:getRecords()};
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.3',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
 }
@@ -505,6 +514,22 @@ function renderStatistics(){
   $('statDuty28Period').textContent=`${formatDate(dateStringFromMs(s.start28))}–${formatDate(dateStringFromMs(s.end-86400000))}`;
   $('statBlock28Period').textContent=$('statDuty28Period').textContent;
   const year=new Date(s.anchor).getUTCFullYear();$('statBlockYearPeriod').textContent=`01.01.${year}–31.12.${year}`;
+
+  const anchorDate=new Date(s.anchor);
+  const monthStart=Date.UTC(anchorDate.getUTCFullYear(),anchorDate.getUTCMonth(),1);
+  const monthEnd=Date.UTC(anchorDate.getUTCFullYear(),anchorDate.getUTCMonth()+1,1);
+  const monthRecords=getRecords().filter(r=>inDateWindow(r,monthStart,monthEnd));
+  const offMonth=uniqueOffDates(monthRecords).length;
+  const offYear=uniqueOffDates(s.ry).length;
+  const monthLabel=`${pad(anchorDate.getUTCMonth()+1)}/${anchorDate.getUTCFullYear()}`;
+
+  $('statOffMonthValue').textContent=`${offMonth} / 7`;
+  $('statOffYearValue').textContent=`${offYear} / 96`;
+  $('statOffMonthPeriod').textContent=monthLabel;
+  $('statOffYearPeriod').textContent=`01.01.${year}–31.12.${year}`;
+  setMinimumProgress('statOffMonthBar',offMonth,7);
+  setMinimumProgress('statOffYearBar',offYear,96);
+
   $('statDutyCount').textContent=s.r28.length;
   const woclRecords=s.r28.filter(r=>(r.woclMinutes||0)>0);
   $('statWoclHours').textContent=formatDuration(woclRecords.reduce((sum,r)=>sum+(r.woclMinutes||0),0));
@@ -594,7 +619,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.2';
+const CURRENT_APP_VERSION='1.9.3';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);

@@ -1,23 +1,30 @@
-FAI FTL Logbook PWA 1.9.2
+FAI FTL Logbook PWA 1.9.3
 
-Änderung gegenüber Version 1.9.1:
-- Die fünf Hauptschaltflächen bleiben dauerhaft sichtbar.
-- Auf iPhone und iPad wird die Navigation als feste Leiste am unteren Bildschirmrand angezeigt.
-- Safe-Area-Abstände für Geräte mit Home-Indikator werden berücksichtigt.
-- Auf größeren Displays bleibt die Navigation oben angeheftet.
-- Der Seiteninhalt erhält zusätzlichen Abstand, damit keine Inhalte von der Navigation verdeckt werden.
-- Bestehende Daten bleiben unverändert erhalten.
+Neu:
+- Berechnung der Local Days Free im ausgewählten Kalendermonat.
+- Sollwert: mindestens 7 Local Days Free pro Kalendermonat.
+- Berechnung der Local Days Free im ausgewählten Kalenderjahr.
+- Sollwert: mindestens 96 Local Days Free pro Kalenderjahr.
+- Fortschrittsanzeigen und Warnfarben für beide Werte.
+- Gezählt werden eindeutige Kalendertage, die ausdrücklich als
+  „Local Day Free / OFF“ gespeichert sind.
+- Der bisherige Hinweis, die Werte seien nicht berechenbar, wurde entfernt.
+- Der ausgewählte Statistik-Stichtag bestimmt den ausgewerteten Monat und das Jahr.
+- Doppelte OFF-Einträge am selben Datum zählen nur einmal.
 
-Geräteübergreifende Synchronisation:
-Die aktuelle App speichert Daten lokal im Browser (localStorage). Diese Daten werden
-nicht automatisch zwischen iPhone und iPad synchronisiert. Für eine echte Synchronisation
-ist ein Cloud-Speicher oder Backend erforderlich, z. B. Supabase, Firebase oder ein eigener
-kleiner Server mit Benutzeranmeldung.
+Wichtige Abgrenzung:
+Die App zählt deklarierte OFF-Tage. Ob ein Local Day Free tatsächlich zwei lokale
+Nächte umfasst, kann ohne Beginn- und Endzeit des freien Zeitraums nicht automatisch
+verifiziert werden. Urlaub und Krankheit werden nicht automatisch als OFF gezählt.
+
+Grundlage:
+FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0, 08.11.2024:
+mindestens 7 Local Days Free pro Kalendermonat und mindestens 96 pro Kalenderjahr.
 
 Update:
-- app-version.json: 1.9.2
-- CURRENT_APP_VERSION: 1.9.2
-- Service-Worker-Cache: ftl-logbook-v1.9.2
+- app-version.json: 1.9.3
+- CURRENT_APP_VERSION: 1.9.3
+- Service-Worker-Cache: ftl-logbook-v1.9.3
 
 GitHub Pages:
 Alle Dateien dieser Version hochladen und vorhandene Dateien ersetzen.
