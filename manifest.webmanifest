@@ -1,7 +1,7 @@
 {
   "name": "FAI FTL Logbook",
   "short_name": "FTL Logbook",
-  "description": "Offline FTL- und Dienstplan-App mit korrigierter Verlaufsliste und vollständig auswählbaren Kalendertagen",
+  "description": "Offline FTL- und Dienstplan-App mit dauerhaft sichtbarer Navigation",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#071521",

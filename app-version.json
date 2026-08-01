@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.1",
+  "appVersion": "1.9.2",
   "lastUpdated": "2026-08-01",
-  "notes": "Dashboard berücksichtigt nur heutige und vergangene Einträge; komplette Kalendertage auswählbar"
+  "notes": "Navigation dauerhaft sichtbar; Vorbereitung auf geräteübergreifende Synchronisation"
 }

@@ -1,23 +1,23 @@
-FAI FTL Logbook PWA 1.9.1
+FAI FTL Logbook PWA 1.9.2
 
-Fehlerkorrekturen:
-- „Letzte Dienste“ berücksichtigt nur Einträge bis einschließlich heute.
-- Zukünftige Kalendereinträge werden nicht mehr in der Verlaufsliste angezeigt.
-- Gibt es keine heutigen oder vergangenen Einträge, bleibt die Liste leer.
-- Die große Statuskarte verwendet weiterhin den letzten tatsächlich vergangenen
-  oder heutigen Flugdienst.
+Änderung gegenüber Version 1.9.1:
+- Die fünf Hauptschaltflächen bleiben dauerhaft sichtbar.
+- Auf iPhone und iPad wird die Navigation als feste Leiste am unteren Bildschirmrand angezeigt.
+- Safe-Area-Abstände für Geräte mit Home-Indikator werden berücksichtigt.
+- Auf größeren Displays bleibt die Navigation oben angeheftet.
+- Der Seiteninhalt erhält zusätzlichen Abstand, damit keine Inhalte von der Navigation verdeckt werden.
+- Bestehende Daten bleiben unverändert erhalten.
 
-Kalender:
-- Die gesamte Tagesfläche kann nun angeklickt oder angetippt werden.
-- Im Mehrfachauswahlmodus schaltet ein Tipp auf die Tagesfläche die Auswahl um.
-- Im Zeitraum-Modus öffnet ein Tipp auf die Tagesfläche den Tag im Eingabeformular.
-- Ein Klick auf einen bestehenden Kalendereintrag öffnet weiterhin genau diesen
-  Eintrag und löst nicht zusätzlich die Tagesauswahl aus.
+Geräteübergreifende Synchronisation:
+Die aktuelle App speichert Daten lokal im Browser (localStorage). Diese Daten werden
+nicht automatisch zwischen iPhone und iPad synchronisiert. Für eine echte Synchronisation
+ist ein Cloud-Speicher oder Backend erforderlich, z. B. Supabase, Firebase oder ein eigener
+kleiner Server mit Benutzeranmeldung.
 
 Update:
-- app-version.json: 1.9.1
-- CURRENT_APP_VERSION: 1.9.1
-- Service-Worker-Cache: ftl-logbook-v1.9.1
+- app-version.json: 1.9.2
+- CURRENT_APP_VERSION: 1.9.2
+- Service-Worker-Cache: ftl-logbook-v1.9.2
 
 GitHub Pages:
 Alle Dateien dieser Version hochladen und vorhandene Dateien ersetzen.
