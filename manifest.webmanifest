@@ -1,7 +1,7 @@
 {
   "name": "FAI FTL Logbook",
   "short_name": "FTL Logbook",
-  "description": "Offline FTL- und Ruhezeitrechner nach FAI OM-A Ch. 7 mit bearbeitbarem Archiv",
+  "description": "Offline FTL-Dashboard und Logbook nach FAI OM-A Ch. 7 mit Suche und Datensicherung",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#071521",

@@ -145,11 +145,8 @@ function calculate(){
   $('appliedRule').textContent=ruleName(rule);
   $('baseLimit').textContent=formatDuration(limit);
   $('latestEnd').textContent=`${formatUtc(latestUtc)} / ${localClock(latestUtc,arr.t)}`;
-  $('reportUtc').textContent=`${formatUtc(reportUtc)} / ${formatDate($('dutyDate').value)} ${$('reportTime').value} lokal`;
-  $('onBlockUtc').textContent=`${formatUtc(onUtc)} / ${formatDate($('onBlockDate').value)} ${$('onBlockTime').value} lokal`;
   $('plannedMargin').textContent=formatDuration(margin);
   $('woclReduction').textContent=`${formatDuration(wocl.reduction)} (${woclTz})`;
-  $('dutyEnd').textContent=`${formatUtc(dutyEnd)} / ${localClock(dutyEnd,arr.t)}`;
   $('dutyDuration').textContent=formatDuration(dutyMinutes);
   $('minimumRest').textContent=formatDuration(minimumRest);
   $('earliestNextReport').textContent=`${formatUtc(earliest)} / ${localClock(earliest,arr.t)}`;
@@ -166,7 +163,7 @@ function calculate(){
   showStatus(title,state,msg);
   currentResult={depCode,arrCode,homeCode,depName:dep.n,arrName:arr.n,depTz:dep.t,arrTz:arr.t,homeTz:home.t,reportUtc,onUtc,plannedFdp:effectiveFdp,sectors,rule,specialMinutes:specialMin,limit,margin,latestUtc,woclMinutes:wocl.minutes,woclReduction:wocl.reduction,woclTz,dutyEnd,dutyMinutes,minimumRest,earliestNextReport:earliest,startEndTimeZoneDiff:startEndDiff,status:title,statusClass:state};
 }
-function clearResult(){currentResult=null;['plannedFdpValue','appliedRule','baseLimit','latestEnd','reportUtc','onBlockUtc','plannedMargin','woclReduction','dutyEnd','dutyDuration','minimumRest','earliestNextReport'].forEach(id=>$(id).textContent='–')}
+function clearResult(){currentResult=null;['plannedFdpValue','appliedRule','baseLimit','latestEnd','plannedMargin','woclReduction','dutyDuration','minimumRest','earliestNextReport'].forEach(id=>$(id).textContent='–')}
 function showStatus(title,state,msg){$('statusPill').className=`status ${state}`;$('statusPill').textContent=title;$('message').textContent=msg}
 function getRecords(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]}}
 function setRecords(r){localStorage.setItem(KEY,JSON.stringify(r))}
@@ -180,7 +177,7 @@ function saveRecord(){
   records.sort((a,b)=>a.reportUtc-b.reportUtc);setRecords(records);
   $('saveBtn').textContent=idx>=0?'Änderungen gespeichert ✓':'Gespeichert ✓';
   setTimeout(()=>{$('saveBtn').textContent=editingId?'Änderungen speichern':'Datensatz speichern'},1400);
-  renderArchive()
+  renderArchive();renderDashboard()
 }
 function setEditing(on){$('editBanner').classList.toggle('hidden',!on);$('saveBtn').textContent=on?'Änderungen speichern':'Datensatz speichern'}
 function switchView(id){document.querySelectorAll('.tab,.view').forEach(x=>x.classList.remove('active'));document.querySelector(`.tab[data-view="${id}"]`).classList.add('active');$(id).classList.add('active')}
@@ -202,13 +199,67 @@ function resetForm(){
   $('sectors').value='1';$('positioning').checked=true;$('awayOver48').checked=false;$('specialRule').value='basic';$('specialMinutes').value=0;$('notes').value='';
   reportInputMode='utc';onBlockInputMode='utc';dutyEndInputMode='utc';dutyEndManual=false;updateSpecialFields();calculate()
 }
-function deleteRecord(id){if(confirm('Diesen Datensatz wirklich löschen?')){if(editingId===id)resetForm();setRecords(getRecords().filter(r=>r.id!==id));renderArchive()}}
+function deleteRecord(id){if(confirm('Diesen Datensatz wirklich löschen?')){if(editingId===id)resetForm();setRecords(getRecords().filter(r=>r.id!==id));renderArchive();renderDashboard()}}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+function recordSearchText(r){
+  return [r.date,r.onBlockDate,r.flightRef,r.depCode,r.arrCode,r.homeCode,r.depName,r.arrName,r.notes,r.status,ruleName(r.specialRule||r.rule||'basic')].join(' ').toLocaleLowerCase('de');
+}
+function filteredArchiveRecords(){
+  const month=$('monthFilter').value;
+  const query=($('archiveSearch')?.value||'').trim().toLocaleLowerCase('de');
+  return getRecords().filter(r=>(!month||(r.date&&r.date.startsWith(month)))&&(!query||recordSearchText(r).includes(query)));
+}
 function renderArchive(){
-  const month=$('monthFilter').value,rs=getRecords().filter(r=>r.date&&r.date.startsWith(month)),tb=$('recordsTable').querySelector('tbody');tb.innerHTML='';
+  const rs=filteredArchiveRecords(),tb=$('recordsTable').querySelector('tbody');tb.innerHTML='';
   rs.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${formatDate(r.date)}</td><td><strong>${escapeHtml(r.depCode)}–${escapeHtml(r.arrCode)}</strong><br><small>${escapeHtml(r.flightRef||'')}</small></td><td><strong>${r.reportUtcTime||datePartsUtc(r.reportUtc).time} UTC</strong><br><small>${r.reportTime||''} lokal</small></td><td><strong>${r.onBlockUtcTime||datePartsUtc(r.onUtc).time} UTC</strong><br><small>${formatDate(r.onBlockDate)} ${r.onBlockTime||''} lokal</small></td><td>${formatDuration(r.plannedFdp)}</td><td>${escapeHtml(ruleName(r.specialRule||r.rule||'basic'))}</td><td>${formatDuration(r.minimumRest)}</td><td class="action-cell"><button class="icon-btn edit-btn" data-id="${r.id}">Bearbeiten</button><button class="icon-btn delete-btn" data-id="${r.id}">Löschen</button></td>`;tb.appendChild(tr)});
   tb.querySelectorAll('.edit-btn').forEach(b=>b.onclick=()=>editRecord(b.dataset.id));tb.querySelectorAll('.delete-btn').forEach(b=>b.onclick=()=>deleteRecord(b.dataset.id));
-  $('emptyState').classList.toggle('hidden',rs.length>0);$('recordsTable').classList.toggle('hidden',rs.length===0);$('monthCount').textContent=rs.length;$('monthFdp').textContent=formatDuration(rs.reduce((s,r)=>s+(r.plannedFdp||0),0))
+  $('emptyState').textContent=($('archiveSearch')?.value||'').trim()?'Keine passenden Datensätze gefunden.':'Für diesen Monat sind keine Datensätze gespeichert.';
+  $('emptyState').classList.toggle('hidden',rs.length>0);$('recordsTable').classList.toggle('hidden',rs.length===0);$('monthCount').textContent=rs.length;$('monthFdp').textContent=formatDuration(rs.reduce((s,r)=>s+(r.plannedFdp||0),0));
+}
+function statusClassForRecord(r){return r.statusClass==='danger'?'danger':r.statusClass==='warn'?'warn':'ok'}
+function renderDashboard(){
+  const records=getRecords().slice().sort((a,b)=>(b.reportUtc||0)-(a.reportUtc||0));
+  const now=new Date(),month=`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+  const monthRecords=records.filter(r=>r.date&&r.date.startsWith(month));
+  $('dashboardTotalCount').textContent=records.length;
+  $('dashboardMonthCount').textContent=`${monthRecords.length} ${monthRecords.length===1?'Datensatz':'Datensätze'}`;
+  $('dashboardMonthFdp').textContent=formatDuration(monthRecords.reduce((s,r)=>s+(r.plannedFdp||0),0));
+  const last=records[0];
+  const status=$('dashboardStatus');
+  if(last){
+    status.textContent=last.status||'Gespeichert';status.className=`dashboard-status ${statusClassForRecord(last)}`;
+    $('dashboardLastRoute').textContent=`${last.depCode||'–'} → ${last.arrCode||'–'}${last.flightRef?' · '+last.flightRef:''}`;
+    $('dashboardLastDate').textContent=formatDate(last.date);
+    $('dashboardNextReport').textContent=Number.isFinite(last.earliestNextReport)?formatUtc(last.earliestNextReport):'–';
+    $('dashboardRestInfo').textContent=`Mindestruhe ${formatDuration(last.minimumRest)}`;
+  }else{
+    status.textContent='Noch keine Daten';status.className='dashboard-status';$('dashboardLastRoute').textContent='–';$('dashboardLastDate').textContent='–';$('dashboardNextReport').textContent='–';$('dashboardRestInfo').textContent='Aus dem letzten gespeicherten Duty';
+  }
+  const recent=records.slice(0,5),box=$('recentRecords');box.innerHTML='';$('dashboardEmpty').classList.toggle('hidden',recent.length>0);
+  recent.forEach(r=>{const row=document.createElement('button');row.className='recent-record';row.dataset.id=r.id;row.innerHTML=`<span><strong>${escapeHtml(r.depCode||'–')} → ${escapeHtml(r.arrCode||'–')}</strong><small>${formatDate(r.date)}${r.flightRef?' · '+escapeHtml(r.flightRef):''}</small></span><span class="recent-values"><strong>${formatDuration(r.plannedFdp)}</strong><small>${escapeHtml(r.status||'')}</small></span>`;row.onclick=()=>editRecord(r.id);box.appendChild(row)});
+}
+function exportBackup(){
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.6.0',exportedAt:new Date().toISOString(),records:getRecords()};
+  const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
+  showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
+}
+function showBackupMessage(text,state=''){const el=$('backupMessage');el.textContent=text;el.className=`backup-message ${state}`}
+async function importBackupFile(file){
+  try{
+    const payload=JSON.parse(await file.text());
+    const imported=Array.isArray(payload)?payload:payload.records;
+    if(!Array.isArray(imported))throw new Error('Keine Datensatzliste gefunden.');
+    if(!imported.every(r=>r&&typeof r==='object'))throw new Error('Ungültige Datensätze.');
+    const mode=$('backupImportMode').value;let result;
+    if(mode==='replace'){
+      if(!confirm(`Vorhandene Daten durch ${imported.length} Datensätze aus dem Backup ersetzen?`))return;
+      result=imported;
+    }else{
+      const existing=getRecords(),map=new Map(existing.map(r=>[r.id,r]));
+      imported.forEach(r=>{const id=r.id||`import-${Date.now()}-${Math.random()}`;map.set(id,{...r,id})});result=[...map.values()];
+    }
+    result.sort((a,b)=>(a.reportUtc||0)-(b.reportUtc||0));setRecords(result);renderArchive();renderDashboard();showBackupMessage(`${imported.length} Datensätze erfolgreich importiert.`, 'ok');
+  }catch(e){showBackupMessage(`Import fehlgeschlagen: ${e.message}`,'danger')}
 }
 function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function exportCSV(){
@@ -236,13 +287,15 @@ function bind(){
   $('departureIcao').addEventListener('input',()=>{syncReport(reportInputMode);calculate()});$('arrivalIcao').addEventListener('input',()=>{syncOnBlock(onBlockInputMode);syncDutyEnd(dutyEndInputMode);calculate()});
   $('specialRule').addEventListener('change',()=>{updateSpecialFields();calculate()});
   ['homeBaseIcao','flightRef','sectors','positioning','awayOver48','specialMinutes','extensionRestMode','augmentedCrew','standbyFacility','reducedRestMinutes','notes'].forEach(id=>$(id).addEventListener('input',calculate));
-  $('saveBtn').onclick=saveRecord;$('resetBtn').onclick=resetForm;$('cancelEditBtn').onclick=resetForm;$('monthFilter').onchange=renderArchive;$('pdfBtn').onclick=exportPDF;$('csvBtn').onclick=exportCSV;
+  $('saveBtn').onclick=saveRecord;$('resetBtn').onclick=resetForm;$('cancelEditBtn').onclick=resetForm;$('monthFilter').onchange=renderArchive;$('archiveSearch').addEventListener('input',renderArchive);$('pdfBtn').onclick=exportPDF;$('csvBtn').onclick=exportCSV;
+  $('newDutyBtn').onclick=()=>{resetForm();switchView('entryView')};$('openArchiveBtn').onclick=()=>{switchView('archiveView');renderArchive()};$('archiveBackupBtn').onclick=()=>{switchView('dashboardView');setTimeout(()=>$('backupExportBtn').scrollIntoView({behavior:'smooth',block:'center'}),50)};
+  $('backupExportBtn').onclick=exportBackup;$('backupImportBtn').onclick=()=>$('backupFileInput').click();$('backupFileInput').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)importBackupFile(f);e.target.value=''})
   document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{switchView(t.dataset.view);if(t.dataset.view==='archiveView')renderArchive()})
 }
 async function init(){
   bind();updateSpecialFields();setSyncBadge('report','utc');setSyncBadge('onBlock','utc');
   try{const data=await fetch('airports.json').then(r=>{if(!r.ok)throw new Error('airports.json');return r.json()});airports=new Map(data.map(a=>[a.i,a]));calculate()}
   catch(e){showStatus('DATENBANKFEHLER','danger','airports.json konnte nicht geladen werden.')}
-  renderArchive()
+  renderArchive();renderDashboard()
 }
 let deferredPrompt;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').hidden=false});$('installBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('installBtn').hidden=true};if('serviceWorker'in navigator)navigator.serviceWorker.register('service-worker.js');init();

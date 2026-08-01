@@ -18,12 +18,72 @@
 </header>
 
 <nav class="tabs" aria-label="Navigation">
-  <button class="tab active" data-view="entryView">Eingabe</button>
+  <button class="tab active" data-view="dashboardView">Dashboard</button>
+  <button class="tab" data-view="entryView">Eingabe</button>
   <button class="tab" data-view="archiveView">Archiv</button>
 </nav>
 
 <main>
-<section id="entryView" class="view active">
+<section id="dashboardView" class="view active">
+  <section class="card dashboard-hero">
+    <div>
+      <div class="eyebrow">Übersicht</div>
+      <h2>FTL Dashboard</h2>
+      <p id="dashboardGreeting">Gespeicherte Dienste, Ruhezeiten und Schnellzugriffe.</p>
+    </div>
+    <button id="newDutyBtn" class="primary compact-btn">Neuen Duty anlegen</button>
+  </section>
+
+  <section class="dashboard-grid">
+    <article class="card dashboard-status-card">
+      <div class="eyebrow">Letzter Datensatz</div>
+      <div id="dashboardStatus" class="dashboard-status">Noch keine Daten</div>
+      <strong id="dashboardLastRoute">–</strong>
+      <span id="dashboardLastDate" class="muted-line">–</span>
+    </article>
+    <article class="card">
+      <div class="eyebrow">Frühestes nächstes Reporting</div>
+      <div id="dashboardNextReport" class="dashboard-value">–</div>
+      <span id="dashboardRestInfo" class="muted-line">Aus dem letzten gespeicherten Duty</span>
+    </article>
+    <article class="card">
+      <div class="eyebrow">Aktueller Monat</div>
+      <div id="dashboardMonthFdp" class="dashboard-value">0:00 h</div>
+      <span id="dashboardMonthCount" class="muted-line">0 Datensätze</span>
+    </article>
+    <article class="card">
+      <div class="eyebrow">Gesamtbestand</div>
+      <div id="dashboardTotalCount" class="dashboard-value">0</div>
+      <span class="muted-line">lokal gespeicherte Datensätze</span>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <div><div class="eyebrow">Zuletzt gespeichert</div><h3>Letzte Dienste</h3></div>
+      <button id="openArchiveBtn" class="ghost small-btn">Archiv öffnen</button>
+    </div>
+    <div id="dashboardEmpty" class="empty">Noch keine Datensätze gespeichert.</div>
+    <div id="recentRecords" class="recent-list"></div>
+  </section>
+
+  <section class="card">
+    <div class="section-head"><div><div class="eyebrow">Datensicherung</div><h3>Backup & Wiederherstellung</h3></div></div>
+    <p class="backup-copy">Exportiert werden alle gespeicherten Datensätze als JSON-Datei. Beim Import kannst du ergänzen oder den vorhandenen Bestand ersetzen.</p>
+    <div class="backup-controls">
+      <button id="backupExportBtn" class="primary">Backup exportieren</button>
+      <select id="backupImportMode" aria-label="Importmodus">
+        <option value="merge">Import ergänzen</option>
+        <option value="replace">Vorhandene Daten ersetzen</option>
+      </select>
+      <button id="backupImportBtn" class="ghost">Backup importieren</button>
+      <input id="backupFileInput" type="file" accept="application/json,.json" hidden>
+    </div>
+    <div id="backupMessage" class="backup-message" aria-live="polite"></div>
+  </section>
+</section>
+
+<section id="entryView" class="view">
   <section class="card hero">
     <span class="badge">Live-Berechnung</span>
     <h2>Flugdienst- und Ruhezeit prüfen</h2>
@@ -166,11 +226,8 @@
       <div class="metric"><span>Angewandte Regel</span><strong id="appliedRule">–</strong></div>
       <div class="metric"><span>FDP-Limit</span><strong id="baseLimit">–</strong></div>
       <div class="metric"><span>Spätestes FDP-Ende</span><strong id="latestEnd">–</strong></div>
-      <div class="metric"><span>Reporting</span><strong id="reportUtc">–</strong></div>
-      <div class="metric"><span>ON-Block</span><strong id="onBlockUtc">–</strong></div>
       <div class="metric"><span>Reserve nach Planung</span><strong id="plannedMargin">–</strong></div>
       <div class="metric"><span>WOCL-Reduzierung</span><strong id="woclReduction">–</strong></div>
-      <div class="metric"><span>Dienstende</span><strong id="dutyEnd">–</strong></div>
       <div class="metric"><span>Dienstzeit</span><strong id="dutyDuration">–</strong></div>
       <div class="metric"><span>Mindest-Ruhezeit</span><strong id="minimumRest">–</strong></div>
       <div class="metric"><span>Frühestes nächstes Reporting</span><strong id="earliestNextReport">–</strong></div>
@@ -187,7 +244,10 @@
   <section class="card">
     <div class="archive-head">
       <div><div class="eyebrow">Gespeicherte Einsätze</div><h2>Monatsübersicht</h2></div>
-      <label>Monat<input id="monthFilter" type="month"></label>
+      <div class="archive-filters">
+        <label>Monat<input id="monthFilter" type="month"></label>
+        <label>Suche<input id="archiveSearch" type="search" placeholder="Flug, ICAO, Notiz, Regel …"></label>
+      </div>
     </div>
     <div class="summary-grid">
       <div class="metric"><span>Datensätze</span><strong id="monthCount">0</strong></div>
@@ -196,6 +256,7 @@
     <div class="action-row">
       <button id="pdfBtn" class="primary">Monat als PDF exportieren</button>
       <button id="csvBtn" class="ghost">CSV exportieren</button>
+      <button id="archiveBackupBtn" class="ghost">Backup</button>
     </div>
   </section>
   <section class="card table-card">
@@ -214,7 +275,7 @@
   <p>Berechnung nach FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0 vom 08.11.2024. Bei genehmigungs-, ereignis- oder nachweispflichtigen Sonderregeln zeigt die App zusätzliche Warnhinweise; sie ersetzt keine Freigabe durch Crew Control, Commander oder LBA.</p>
 </section>
 </main>
-<footer>Version 1.5.0 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
+<footer>Version 1.6.0 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
 <script src="app.js"></script>
 </body>
 </html>
