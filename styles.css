@@ -106,3 +106,8 @@
   .header-actions{flex-direction:column;align-items:stretch}
   .update-status{margin:10px 14px 0;align-items:flex-start;flex-direction:column}
 }
+
+.calendar-day:not(.blank){cursor:pointer}
+.calendar-day:not(.blank):hover{background:rgba(76,194,255,.07)}
+.calendar-day:not(.blank):focus{outline:2px solid var(--accent);outline-offset:2px}
+.calendar-date{display:flex;align-items:center;justify-content:center;align-self:flex-start;width:30px;height:30px;padding:0;border-radius:50%;background:transparent;color:var(--text);font-weight:700}

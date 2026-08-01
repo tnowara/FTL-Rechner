@@ -1,23 +1,25 @@
-FAI FTL Logbook PWA 1.9.0
+FAI FTL Logbook PWA 1.9.1
 
-Neu:
-- Update-Button im Kopfbereich der App.
-- Online-Prüfung über app-version.json.
-- Anzeige, ob die installierte Version aktuell ist.
-- Neue Versionen werden über den Service Worker heruntergeladen.
-- Ein geladenes Update kann mit „Update installieren“ aktiviert werden.
-- Die App lädt nach Aktivierung des neuen Service Workers automatisch neu.
-- app-version.json wird bewusst ohne Browser-Cache abgefragt.
-- Bestehende Daten und Backups bleiben unverändert erhalten.
+Fehlerkorrekturen:
+- „Letzte Dienste“ berücksichtigt nur Einträge bis einschließlich heute.
+- Zukünftige Kalendereinträge werden nicht mehr in der Verlaufsliste angezeigt.
+- Gibt es keine heutigen oder vergangenen Einträge, bleibt die Liste leer.
+- Die große Statuskarte verwendet weiterhin den letzten tatsächlich vergangenen
+  oder heutigen Flugdienst.
 
-Wichtig für zukünftige Updates:
-1. In app-version.json die appVersion erhöhen.
-2. In index.html die sichtbare Versionsnummer anpassen.
-3. In app.js CURRENT_APP_VERSION anpassen.
-4. In service-worker.js den CACHE-Namen erhöhen.
-5. Alle geänderten Dateien auf GitHub hochladen.
+Kalender:
+- Die gesamte Tagesfläche kann nun angeklickt oder angetippt werden.
+- Im Mehrfachauswahlmodus schaltet ein Tipp auf die Tagesfläche die Auswahl um.
+- Im Zeitraum-Modus öffnet ein Tipp auf die Tagesfläche den Tag im Eingabeformular.
+- Ein Klick auf einen bestehenden Kalendereintrag öffnet weiterhin genau diesen
+  Eintrag und löst nicht zusätzlich die Tagesauswahl aus.
+
+Update:
+- app-version.json: 1.9.1
+- CURRENT_APP_VERSION: 1.9.1
+- Service-Worker-Cache: ftl-logbook-v1.9.1
 
 GitHub Pages:
 Alle Dateien dieser Version hochladen und vorhandene Dateien ersetzen.
 app-version.json und airports.json müssen im selben Ordner wie index.html liegen.
-Danach die Seite einmal vollständig neu laden.
+Danach in der App „Update prüfen“ auswählen.

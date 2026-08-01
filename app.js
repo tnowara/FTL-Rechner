@@ -232,7 +232,11 @@ function dashboardRecordTime(r){
 }
 function renderDashboard(){
   renderDashboardLimits();
-  const records=getRecords().slice().sort((a,b)=>dashboardRecordTime(b)-dashboardRecordTime(a));
+  const todayEnd=dateToUtcNoon(today())+12*3600000;
+  const records=getRecords()
+    .filter(r=>dashboardRecordTime(r)<todayEnd)
+    .slice()
+    .sort((a,b)=>dashboardRecordTime(b)-dashboardRecordTime(a));
   const now=new Date(),month=`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
   const monthRecords=records.filter(r=>r.date&&r.date.startsWith(month));
   $('dashboardTotalCount').textContent=records.length;
@@ -274,7 +278,7 @@ function renderDashboard(){
   });
 }
 function exportBackup(){
-  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.0',exportedAt:new Date().toISOString(),records:getRecords()};
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.1',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
 }
@@ -421,16 +425,28 @@ function renderCalendar(){
   const records=calendarRecords().filter(r=>r.date&&r.date.startsWith(month));
   for(let day=1;day<=daysInMonth;day++){
     const date=`${year}-${pad(mon)}-${pad(day)}`;
-    const cell=document.createElement('div');cell.className='calendar-day';
+    const cell=document.createElement('div');cell.className='calendar-day';cell.tabIndex=0;cell.setAttribute('role','button');cell.setAttribute('aria-label',formatDate(date));
     if(date===today())cell.classList.add('today');
-    const head=document.createElement('button');head.type='button';head.className='calendar-date';head.textContent=day;
+    const head=document.createElement('div');head.className='calendar-date';head.textContent=day;
     if(selectedCalendarDates.has(date))cell.classList.add('selected');
-    head.onclick=()=>{
+
+    const selectCalendarDay=()=>{
       if($('calendarSelectionMode').value==='multiple'){
         if(selectedCalendarDates.has(date))selectedCalendarDates.delete(date);else selectedCalendarDates.add(date);
         updateSelectedDaysDisplay();renderCalendar();
       }else{
         resetCalendarForm(date);$('calendarEntryDate').scrollIntoView({behavior:'smooth',block:'center'});
+      }
+    };
+
+    cell.onclick=event=>{
+      if(event.target.closest('.calendar-item'))return;
+      selectCalendarDay();
+    };
+    cell.onkeydown=event=>{
+      if(event.key==='Enter'||event.key===' '){
+        event.preventDefault();
+        selectCalendarDay();
       }
     };
     cell.appendChild(head);
@@ -578,7 +594,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.0';
+const CURRENT_APP_VERSION='1.9.1';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);
