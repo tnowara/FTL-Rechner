@@ -1,7 +1,7 @@
 {
   "name": "EASA FTL Logbook",
   "short_name": "FTL Logbook",
-  "description": "Offline FTL-Planer mit ICAO-Flughafen- und Zeitzonendatenbank",
+  "description": "Offline FTL-Planer mit synchroner UTC- und Ortszeit sowie ICAO-Zeitzonendatenbank",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#071521",
