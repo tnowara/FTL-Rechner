@@ -274,7 +274,7 @@ function renderDashboard(){
   });
 }
 function exportBackup(){
-  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.8.2',exportedAt:new Date().toISOString(),records:getRecords()};
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.0',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
 }
@@ -575,4 +575,112 @@ async function init(){
   catch(e){showStatus('DATENBANKFEHLER','danger','airports.json konnte nicht geladen werden.')}
   renderArchive();renderDashboard();renderStatistics();renderCalendar()
 }
-let deferredPrompt;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').hidden=false});$('installBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('installBtn').hidden=true};if('serviceWorker'in navigator)navigator.serviceWorker.register('service-worker.js');init();
+let deferredPrompt;
+let swRegistration=null;
+let waitingWorker=null;
+const CURRENT_APP_VERSION='1.9.0';
+
+function compareVersions(a,b){
+  const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);
+  const pb=String(b||'0').split('.').map(n=>parseInt(n,10)||0);
+  const len=Math.max(pa.length,pb.length);
+  for(let i=0;i<len;i++){
+    const da=pa[i]||0,db=pb[i]||0;
+    if(da>db)return 1;
+    if(da<db)return -1;
+  }
+  return 0;
+}
+function showUpdateStatus(text,mode='info',showApply=false){
+  const box=$('updateStatus'),label=$('updateStatusText'),apply=$('applyUpdateBtn');
+  box.className=`update-status ${mode}`;
+  label.textContent=text;
+  apply.classList.toggle('hidden',!showApply);
+}
+function hideUpdateStatus(){
+  $('updateStatus').className='update-status hidden';
+  $('applyUpdateBtn').classList.add('hidden');
+}
+async function fetchRemoteVersion(){
+  const response=await fetch(`app-version.json?ts=${Date.now()}`,{cache:'no-store'});
+  if(!response.ok)throw new Error('Versionsdatei konnte nicht geladen werden.');
+  return response.json();
+}
+async function checkForAppUpdate(manual=true){
+  const button=$('updateBtn');
+  if(button){button.disabled=true;button.textContent='Prüfe …'}
+  try{
+    const remote=await fetchRemoteVersion();
+    if(swRegistration)await swRegistration.update();
+
+    if(compareVersions(remote.appVersion,CURRENT_APP_VERSION)>0){
+      showUpdateStatus(`Neue Version ${remote.appVersion} verfügbar.`, 'available', true);
+    }else if(waitingWorker||swRegistration?.waiting){
+      waitingWorker=waitingWorker||swRegistration.waiting;
+      showUpdateStatus('Ein Update wurde geladen und kann installiert werden.', 'available', true);
+    }else{
+      showUpdateStatus(`Version ${CURRENT_APP_VERSION} ist aktuell.`, 'success', false);
+      if(manual)setTimeout(hideUpdateStatus,3500);
+    }
+  }catch(error){
+    showUpdateStatus(navigator.onLine?'Update-Prüfung fehlgeschlagen. Bitte später erneut versuchen.':'Keine Internetverbindung. Update-Prüfung nicht möglich.','error',false);
+  }finally{
+    if(button){button.disabled=false;button.textContent='Update prüfen'}
+  }
+}
+function observeInstallingWorker(worker){
+  if(!worker)return;
+  worker.addEventListener('statechange',()=>{
+    if(worker.state==='installed'&&navigator.serviceWorker.controller){
+      waitingWorker=swRegistration?.waiting||worker;
+      showUpdateStatus('Ein Update wurde heruntergeladen.', 'available', true);
+    }
+  });
+}
+async function applyAppUpdate(){
+  waitingWorker=waitingWorker||swRegistration?.waiting;
+  if(waitingWorker){
+    showUpdateStatus('Update wird installiert …','info',false);
+    waitingWorker.postMessage({type:'SKIP_WAITING'});
+  }else{
+    showUpdateStatus('Update wird vorbereitet …','info',false);
+    try{
+      if(swRegistration)await swRegistration.update();
+      setTimeout(()=>location.reload(),700);
+    }catch{
+      location.reload();
+    }
+  }
+}
+
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredPrompt=e;$('installBtn').hidden=false
+});
+$('installBtn').onclick=async()=>{
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt=null;
+  $('installBtn').hidden=true
+};
+$('updateBtn').onclick=()=>checkForAppUpdate(true);
+$('applyUpdateBtn').onclick=applyAppUpdate;
+
+if('serviceWorker'in navigator){
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(window.__ftlReloading)return;
+    window.__ftlReloading=true;
+    location.reload();
+  });
+
+  navigator.serviceWorker.register('service-worker.js').then(reg=>{
+    swRegistration=reg;
+    if(reg.waiting){
+      waitingWorker=reg.waiting;
+      showUpdateStatus('Ein Update wurde geladen.', 'available', true);
+    }
+    reg.addEventListener('updatefound',()=>observeInstallingWorker(reg.installing));
+    setTimeout(()=>checkForAppUpdate(false),1800);
+  }).catch(()=>showUpdateStatus('Service Worker konnte nicht registriert werden.','error',false));
+}
+init();
