@@ -216,7 +216,7 @@ function recordSearchText(r){
 function filteredArchiveRecords(){
   const month=$('monthFilter').value;
   const query=($('archiveSearch')?.value||'').trim().toLocaleLowerCase('de');
-  return getRecords().filter(r=>(!month||(r.date&&r.date.startsWith(month)))&&(!query||recordSearchText(r).includes(query)));
+  return getRecords().filter(r=>isDutyRecord(r)&&(!month||(r.date&&r.date.startsWith(month)))&&(!query||recordSearchText(r).includes(query)));
 }
 function renderArchive(){
   const rs=filteredArchiveRecords(),tb=$('recordsTable').querySelector('tbody');tb.innerHTML='';
@@ -226,30 +226,55 @@ function renderArchive(){
   $('emptyState').classList.toggle('hidden',rs.length>0);$('recordsTable').classList.toggle('hidden',rs.length===0);$('monthCount').textContent=rs.length;$('monthFdp').textContent=formatDuration(rs.reduce((s,r)=>s+(r.plannedFdp||0),0));$('monthBlock').textContent=formatDuration(rs.reduce((s,r)=>s+(r.blockMinutes||0),0));
 }
 function statusClassForRecord(r){return r.statusClass==='danger'?'danger':r.statusClass==='warn'?'warn':'ok'}
+function dashboardRecordTime(r){
+  if(isDutyRecord(r)&&Number.isFinite(r.reportUtc))return r.reportUtc;
+  return dateToUtcNoon(r.date)||0;
+}
 function renderDashboard(){
   renderDashboardLimits();
-  const records=getRecords().slice().sort((a,b)=>(b.reportUtc||0)-(a.reportUtc||0));
+  const records=getRecords().slice().sort((a,b)=>dashboardRecordTime(b)-dashboardRecordTime(a));
   const now=new Date(),month=`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
   const monthRecords=records.filter(r=>r.date&&r.date.startsWith(month));
   $('dashboardTotalCount').textContent=records.length;
   $('dashboardMonthCount').textContent=`${monthRecords.length} ${monthRecords.length===1?'Datensatz':'Datensätze'}`;
   $('dashboardMonthFdp').textContent=formatDuration(monthRecords.reduce((s,r)=>s+(r.plannedFdp||0),0));
-  const last=records[0];
+
+  const lastDuty=records.find(isDutyRecord);
   const status=$('dashboardStatus');
-  if(last){
-    status.textContent=last.status||'Gespeichert';status.className=`dashboard-status ${statusClassForRecord(last)}`;
-    $('dashboardLastRoute').textContent=`${last.depCode||'–'} → ${last.arrCode||'–'}${last.flightRef?' · '+last.flightRef:''}`;
-    $('dashboardLastDate').textContent=formatDate(last.date);
-    $('dashboardNextReport').textContent=Number.isFinite(last.earliestNextReport)?formatUtc(last.earliestNextReport):'–';
-    $('dashboardRestInfo').textContent=`Mindestruhe ${formatDuration(last.minimumRest)}`;
+  if(lastDuty){
+    status.textContent=lastDuty.status||'Gespeichert';status.className=`dashboard-status ${statusClassForRecord(lastDuty)}`;
+    $('dashboardLastRoute').textContent=`${lastDuty.depCode||'–'} → ${lastDuty.arrCode||'–'}${lastDuty.flightRef?' · '+lastDuty.flightRef:''}`;
+    $('dashboardLastDate').textContent=formatDate(lastDuty.date);
+    $('dashboardNextReport').textContent=Number.isFinite(lastDuty.earliestNextReport)?formatUtc(lastDuty.earliestNextReport):'–';
+    $('dashboardRestInfo').textContent=`Mindestruhe ${formatDuration(lastDuty.minimumRest)}`;
   }else{
-    status.textContent='Noch keine Daten';status.className='dashboard-status';$('dashboardLastRoute').textContent='–';$('dashboardLastDate').textContent='–';$('dashboardNextReport').textContent='–';$('dashboardRestInfo').textContent='Aus dem letzten gespeicherten Duty';
+    status.textContent='Noch kein Flugdienst';status.className='dashboard-status';
+    $('dashboardLastRoute').textContent='–';$('dashboardLastDate').textContent='–';
+    $('dashboardNextReport').textContent='–';$('dashboardRestInfo').textContent='Aus dem letzten gespeicherten Duty';
   }
-  const recent=records.slice(0,5),box=$('recentRecords');box.innerHTML='';$('dashboardEmpty').classList.toggle('hidden',recent.length>0);
-  recent.forEach(r=>{const row=document.createElement('button');row.className='recent-record';row.dataset.id=r.id;row.innerHTML=`<span><strong>${escapeHtml(r.depCode||'–')} → ${escapeHtml(r.arrCode||'–')}</strong><small>${formatDate(r.date)}${r.flightRef?' · '+escapeHtml(r.flightRef):''}</small></span><span class="recent-values"><strong>${formatDuration(r.plannedFdp)}</strong><small>${escapeHtml(r.status||'')}</small></span>`;row.onclick=()=>editRecord(r.id);box.appendChild(row)});
+
+  const recent=records.slice(0,5),box=$('recentRecords');
+  box.innerHTML='';$('dashboardEmpty').classList.toggle('hidden',recent.length>0);
+
+  recent.forEach(r=>{
+    const row=document.createElement('button');
+    row.className='recent-record';
+    row.dataset.id=r.id;
+
+    if(isDutyRecord(r)){
+      row.innerHTML=`<span><strong>${escapeHtml(r.depCode||'–')} → ${escapeHtml(r.arrCode||'–')}</strong><small>${formatDate(r.date)}${r.flightRef?' · '+escapeHtml(r.flightRef):''}</small></span><span class="recent-values"><strong>${formatDuration(r.plannedFdp)}</strong><small>${escapeHtml(r.status||'')}</small></span>`;
+      row.onclick=()=>editRecord(r.id);
+    }else{
+      const type=r.entryType||'other';
+      row.classList.add(`recent-${calendarTypeClass(type)}`);
+      row.innerHTML=`<span><strong>${escapeHtml(calendarTypeName(type))}</strong><small>${formatDate(r.date)}</small></span><span class="recent-values"><strong>${r.dutyMinutes?formatDuration(r.dutyMinutes):''}</strong><small>${type==='off'?'Local Day Free':''}</small></span>`;
+      row.onclick=()=>{switchView('calendarView');renderCalendar();editCalendarEntry(r.id)};
+    }
+    box.appendChild(row);
+  });
 }
 function exportBackup(){
-  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.6.0',exportedAt:new Date().toISOString(),records:getRecords()};
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.8.2',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
 }

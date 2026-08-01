@@ -1,17 +1,21 @@
-FAI FTL Logbook PWA 1.8.1
+FAI FTL Logbook PWA 1.8.2
 
-Neu:
-- Kalendereinträge können für mehrere Tage gleichzeitig erstellt werden.
-- Zwei Auswahlmodi:
-  * zusammenhängender Zeitraum von/bis
-  * einzelne, frei auswählbare Tage direkt im Kalender
-- Bei Mehrfachauswahl werden für jeden gewählten Tag einzelne Einträge angelegt.
-- Bestehende einzelne Kalendereinträge bleiben weiterhin separat bearbeitbar.
-- Das Freitextfeld „Bezeichnung“ wurde entfernt.
-- Im Kalender wird direkt der über das Dropdown gewählte Typ angezeigt:
-  OFF, Urlaub, Krank, Standby, Training oder Sonstiges.
-- Notizen bleiben optional erhalten.
-- Bestehende Duty- und Kalendereinträge aus Version 1.8.0 bleiben erhalten.
+Änderung gegenüber Version 1.8.1:
+- Die Dashboard-Überschrift bleibt „Letzte Dienste“.
+- Die Liste zeigt die letzten fünf Einträge chronologisch nach Dienst- bzw. Kalendertag.
+- Neben Flugdiensten werden auch folgende Einträge aufgeführt:
+  * OFF / Local Day Free
+  * Urlaub
+  * Krankheit
+  * Standby
+  * Training / Office Duty
+  * Sonstiges
+- OFF-Tage werden ausdrücklich als „OFF“ angezeigt.
+- Ein Antippen öffnet den jeweiligen Flugdienst oder Kalendereintrag zur Bearbeitung.
+- Die große Statuskarte im Dashboard bezieht sich weiterhin auf den zuletzt
+  geflogenen Flugdienst, nicht auf OFF- oder Urlaubstage.
+- Das Archiv bleibt auf Flugdienst-Datensätze beschränkt.
+- Bestehende Daten bleiben unverändert erhalten.
 
 Grundlage:
 FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0, 08.11.2024.
