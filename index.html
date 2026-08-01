@@ -144,8 +144,21 @@
     </div>
 
     <div class="grid">
-      <label>Datum
+      <label>Auswahlmodus
+        <select id="calendarSelectionMode">
+          <option value="range">Zusammenhängender Zeitraum</option>
+          <option value="multiple">Einzelne Tage auswählen</option>
+        </select>
+      </label>
+      <label id="calendarStartDateWrap">Von
         <input id="calendarEntryDate" type="date">
+      </label>
+      <label id="calendarEndDateWrap">Bis
+        <input id="calendarEntryEndDate" type="date">
+      </label>
+      <label id="calendarSelectedDaysWrap" class="hidden">Ausgewählte Tage
+        <div id="selectedDaysDisplay" class="selected-days-display">Keine Tage ausgewählt</div>
+        <small>Tage direkt oben im Kalender antippen.</small>
       </label>
       <label>Eintragstyp
         <select id="calendarEntryType">
@@ -157,12 +170,9 @@
           <option value="other">Sonstiges</option>
         </select>
       </label>
-      <label id="calendarDurationWrap">Anrechenbare Duty-Dauer
+      <label id="calendarDurationWrap">Anrechenbare Duty-Dauer je Tag
         <input id="calendarEntryDuration" type="time" value="00:00" step="60">
         <small>Relevant für Standby, Training oder Office Duty.</small>
-      </label>
-      <label>Bezeichnung
-        <input id="calendarEntryTitle" type="text" placeholder="z. B. Simulator, OFF, Urlaub">
       </label>
       <label class="calendar-note">Notiz
         <textarea id="calendarEntryNotes" rows="3" placeholder="Optionale Bemerkung"></textarea>
@@ -170,12 +180,12 @@
     </div>
 
     <div class="action-row">
-      <button id="saveCalendarEntryBtn" class="primary" type="button">Eintrag speichern</button>
+      <button id="saveCalendarEntryBtn" class="primary" type="button">Einträge speichern</button>
       <button id="deleteCalendarEntryBtn" class="ghost danger-outline hidden" type="button">Eintrag löschen</button>
     </div>
 
     <div class="rule-note">
-      Ein als „Local Day Free / OFF“ erfasster Tag wird deklarativ gezählt. Ob die OM-A-Definition mit zwei lokalen Nächten tatsächlich erfüllt ist, kann aus einem einzelnen Kalendereintrag nicht automatisch geprüft werden.
+      Mehrere Tage werden als einzelne Kalendereinträge gespeichert. Ein als „Local Day Free / OFF“ erfasster Tag wird deklarativ gezählt. Ob die OM-A-Definition mit zwei lokalen Nächten tatsächlich erfüllt ist, kann aus einem einzelnen Kalendereintrag nicht automatisch geprüft werden.
     </div>
   </section>
 </section>
@@ -459,7 +469,7 @@
   <p>Berechnung nach FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0 vom 08.11.2024. Bei genehmigungs-, ereignis- oder nachweispflichtigen Sonderregeln zeigt die App zusätzliche Warnhinweise; sie ersetzt keine Freigabe durch Crew Control, Commander oder LBA.</p>
 </section>
 </main>
-<footer>Version 1.8.0 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
+<footer>Version 1.8.1 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
 <script src="app.js"></script>
 </body>
 </html>

@@ -83,3 +83,6 @@
 .calendar-note{grid-column:1/-1}.danger-outline{border-color:rgba(255,107,107,.4);color:var(--danger)}
 .ok-text{color:var(--ok)!important}.warn-text{color:var(--warn)!important}
 @media(max-width:760px){.calendar-toolbar{align-items:flex-start;flex-direction:column}.calendar-summary{grid-template-columns:repeat(2,1fr)}}
+
+.calendar-day.selected{box-shadow:inset 0 0 0 2px var(--accent);background:rgba(76,194,255,.10)}
+.selected-days-display{min-height:46px;padding:11px 12px;border:1px solid var(--line);border-radius:13px;background:#081b2b;color:var(--text);font-weight:500;line-height:1.45}

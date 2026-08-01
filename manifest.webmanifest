@@ -1,7 +1,7 @@
 {
   "name": "FAI FTL Logbook",
   "short_name": "FTL Logbook",
-  "description": "Offline FTL-, Ruhezeit-, Statistik- und Dienstplankalender nach FAI OM-A Ch. 7",
+  "description": "Offline FTL-, Ruhezeit-, Statistik- und Mehrtages-Dienstplankalender nach FAI OM-A Ch. 7",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#071521",

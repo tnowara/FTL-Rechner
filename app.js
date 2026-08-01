@@ -1,12 +1,12 @@
 const $=id=>document.getElementById(id),KEY='ftl-logbook-records-v4';
 let currentResult=null,airports=new Map(),syncing=false;
-let calendarEditingId=null;
+let calendarEditingId=null,selectedCalendarDates=new Set();
 let reportInputMode='utc',onBlockInputMode='utc',dutyEndInputMode='utc',dutyEndManual=false,editingId=null;
 
 const pad=n=>String(n).padStart(2,'0');
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
 for(let i=1;i<=10;i++){const o=document.createElement('option');o.value=i;o.textContent=i===1?'1 Sektor':`${i} Sektoren`;$('sectors').appendChild(o)}
-$('dutyDate').value=today();$('onBlockDate').value=today();$('monthFilter').value=today().slice(0,7);$('statisticsDate').value=today();$('calendarMonth').value=today().slice(0,7);$('calendarEntryDate').value=today();
+$('dutyDate').value=today();$('onBlockDate').value=today();$('monthFilter').value=today().slice(0,7);$('statisticsDate').value=today();$('calendarMonth').value=today().slice(0,7);$('calendarEntryDate').value=today();$('calendarEntryEndDate').value=today();
 
 function toMinutes(t){const [h,m]=String(t||'00:00').split(':').map(Number);return h*60+m}
 function formatDuration(v){if(!Number.isFinite(v))return '–';const s=v<0?'−':'';v=Math.abs(Math.round(v));return `${s}${Math.floor(v/60)}:${pad(v%60)} h`}
@@ -273,40 +273,89 @@ function calendarRecords(){
 }
 function resetCalendarForm(date=today()){
   calendarEditingId=null;
+  selectedCalendarDates.clear();
   $('calendarFormTitle').textContent='Eintrag hinzufügen';
+  $('calendarSelectionMode').value='range';
   $('calendarEntryDate').value=date;
+  $('calendarEntryEndDate').value=date;
   $('calendarEntryType').value='off';
   $('calendarEntryDuration').value='00:00';
-  $('calendarEntryTitle').value='';
   $('calendarEntryNotes').value='';
   $('deleteCalendarEntryBtn').classList.add('hidden');
   updateCalendarDurationVisibility();
+  updateCalendarSelectionMode();
+  updateSelectedDaysDisplay();
 }
 function updateCalendarDurationVisibility(){
   const type=$('calendarEntryType').value;
   $('calendarDurationWrap').classList.toggle('hidden',!['standby','training','other'].includes(type));
 }
+
+function updateCalendarSelectionMode(){
+  const multiple=$('calendarSelectionMode').value==='multiple';
+  $('calendarStartDateWrap').classList.toggle('hidden',multiple);
+  $('calendarEndDateWrap').classList.toggle('hidden',multiple);
+  $('calendarSelectedDaysWrap').classList.toggle('hidden',!multiple);
+  renderCalendar();
+}
+function updateSelectedDaysDisplay(){
+  const dates=[...selectedCalendarDates].sort();
+  $('selectedDaysDisplay').textContent=dates.length?dates.map(formatDate).join(', '):'Keine Tage ausgewählt';
+}
+function datesInRange(start,end){
+  const result=[];
+  let cur=dateToUtcNoon(start),last=dateToUtcNoon(end);
+  if(!Number.isFinite(cur)||!Number.isFinite(last))return result;
+  if(last<cur)[cur,last]=[last,cur];
+  for(let t=cur;t<=last;t+=86400000)result.push(dateStringFromMs(t));
+  return result;
+}
+function calendarTargetDates(){
+  if($('calendarSelectionMode').value==='multiple')return [...selectedCalendarDates].sort();
+  return datesInRange($('calendarEntryDate').value,$('calendarEntryEndDate').value);
+}
+
 function saveCalendarEntry(){
-  const date=$('calendarEntryDate').value;
-  if(!date)return alert('Bitte ein Datum auswählen.');
+  const dates=calendarTargetDates();
+  if(!dates.length)return alert('Bitte mindestens einen Tag auswählen.');
   const type=$('calendarEntryType').value;
   const records=getRecords();
-  const record={
-    id:calendarEditingId||((crypto.randomUUID&&crypto.randomUUID())||String(Date.now())),
-    entryType:type,
-    date,
-    title:$('calendarEntryTitle').value.trim()||calendarTypeName(type),
-    notes:$('calendarEntryNotes').value.trim(),
-    dutyMinutes:['standby','training','other'].includes(type)?toMinutes($('calendarEntryDuration').value):0,
-    blockMinutes:0,
-    createdAt:new Date().toISOString(),
-    savedAt:new Date().toISOString()
-  };
-  const idx=records.findIndex(r=>r.id===record.id);
-  if(idx>=0)records[idx]={...records[idx],...record};else records.push(record);
+  const duration=['standby','training','other'].includes(type)?toMinutes($('calendarEntryDuration').value):0;
+  const notes=$('calendarEntryNotes').value.trim();
+
+  if(calendarEditingId){
+    const idx=records.findIndex(r=>r.id===calendarEditingId);
+    if(idx>=0){
+      records[idx]={
+        ...records[idx],
+        entryType:type,
+        date:dates[0],
+        title:calendarTypeName(type),
+        notes,
+        dutyMinutes:duration,
+        blockMinutes:0,
+        savedAt:new Date().toISOString()
+      };
+    }
+  }else{
+    for(const date of dates){
+      records.push({
+        id:(crypto.randomUUID&&crypto.randomUUID())||`${Date.now()}-${date}-${Math.random()}`,
+        entryType:type,
+        date,
+        title:calendarTypeName(type),
+        notes,
+        dutyMinutes:duration,
+        blockMinutes:0,
+        createdAt:new Date().toISOString(),
+        savedAt:new Date().toISOString()
+      });
+    }
+  }
+
   records.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   setRecords(records);
-  resetCalendarForm(date);
+  resetCalendarForm(dates[0]||today());
   renderCalendar();
   renderStatistics();
   renderDashboard();
@@ -317,13 +366,15 @@ function editCalendarEntry(id){
   if(isDutyRecord(r)){editRecord(id);return}
   calendarEditingId=id;
   $('calendarFormTitle').textContent='Eintrag bearbeiten';
+  $('calendarSelectionMode').value='range';
   $('calendarEntryDate').value=r.date||today();
+  $('calendarEntryEndDate').value=r.date||today();
   $('calendarEntryType').value=r.entryType||'other';
   $('calendarEntryDuration').value=`${pad(Math.floor((r.dutyMinutes||0)/60))}:${pad((r.dutyMinutes||0)%60)}`;
-  $('calendarEntryTitle').value=r.title||'';
   $('calendarEntryNotes').value=r.notes||'';
   $('deleteCalendarEntryBtn').classList.remove('hidden');
   updateCalendarDurationVisibility();
+  updateCalendarSelectionMode();
   window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
 }
 function deleteCalendarEntry(){
@@ -348,7 +399,15 @@ function renderCalendar(){
     const cell=document.createElement('div');cell.className='calendar-day';
     if(date===today())cell.classList.add('today');
     const head=document.createElement('button');head.type='button';head.className='calendar-date';head.textContent=day;
-    head.onclick=()=>{resetCalendarForm(date);$('calendarEntryDate').scrollIntoView({behavior:'smooth',block:'center'})};
+    if(selectedCalendarDates.has(date))cell.classList.add('selected');
+    head.onclick=()=>{
+      if($('calendarSelectionMode').value==='multiple'){
+        if(selectedCalendarDates.has(date))selectedCalendarDates.delete(date);else selectedCalendarDates.add(date);
+        updateSelectedDaysDisplay();renderCalendar();
+      }else{
+        resetCalendarForm(date);$('calendarEntryDate').scrollIntoView({behavior:'smooth',block:'center'});
+      }
+    };
     cell.appendChild(head);
     const dayRecords=records.filter(r=>r.date===date).sort((a,b)=>isDutyRecord(a)?-1:1);
     dayRecords.forEach(r=>{
@@ -358,7 +417,7 @@ function renderCalendar(){
       if(isDutyRecord(r)){
         item.innerHTML=`<strong>${escapeHtml(r.depCode||'Duty')}${r.arrCode?'–'+escapeHtml(r.arrCode):''}</strong><span>${escapeHtml(r.flightRef||'')} ${r.plannedFdp?formatDuration(r.plannedFdp):''}</span>`;
       }else{
-        item.innerHTML=`<strong>${escapeHtml(r.title||calendarTypeName(r.entryType))}</strong><span>${r.dutyMinutes?formatDuration(r.dutyMinutes):''}</span>`;
+        item.innerHTML=`<strong>${escapeHtml(calendarTypeName(r.entryType))}</strong><span>${r.dutyMinutes?formatDuration(r.dutyMinutes):''}</span>`;
       }
       item.onclick=()=>editCalendarEntry(r.id);
       cell.appendChild(item);
@@ -478,6 +537,8 @@ function bind(){
   $('nextMonthBtn').onclick=()=>{$('calendarMonth').value=monthShift($('calendarMonth').value,1);renderCalendar()};
   $('newCalendarEntryBtn').onclick=()=>resetCalendarForm($('calendarMonth').value+'-01');
   $('calendarEntryType').addEventListener('change',updateCalendarDurationVisibility);
+  $('calendarSelectionMode').addEventListener('change',updateCalendarSelectionMode);
+  $('calendarEntryDate').addEventListener('change',()=>{if($('calendarSelectionMode').value==='range'&&!$('calendarEntryEndDate').value)$('calendarEntryEndDate').value=$('calendarEntryDate').value});
   $('saveCalendarEntryBtn').onclick=saveCalendarEntry;
   $('deleteCalendarEntryBtn').onclick=deleteCalendarEntry;$('openArchiveBtn').onclick=()=>{switchView('archiveView');renderArchive()};$('openStatisticsBtn').onclick=()=>{switchView('statisticsView');renderStatistics()};$('statisticsDate').addEventListener('change',renderStatistics);$('archiveBackupBtn').onclick=()=>{switchView('dashboardView');setTimeout(()=>$('backupExportBtn').scrollIntoView({behavior:'smooth',block:'center'}),50)};
   $('backupExportBtn').onclick=exportBackup;$('backupImportBtn').onclick=()=>$('backupFileInput').click();$('backupFileInput').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)importBackupFile(f);e.target.value=''})
