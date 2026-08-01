@@ -1,119 +1,17 @@
-<!doctype html>
-<html lang="de">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0b1f33">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>EASA FTL Logbook</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="apple-touch-icon" href="icon.svg">
-</head>
-<body>
-<header class="app-header">
-  <div><div class="eyebrow">EASA FTL</div><h1>FTL Logbook</h1></div>
-  <button id="installBtn" class="ghost" hidden>Installieren</button>
-</header>
-
-<nav class="tabs" aria-label="Navigation">
-  <button class="tab active" data-view="entryView">Eingabe</button>
-  <button class="tab" data-view="archiveView">Archiv</button>
-</nav>
-
-<main>
-  <section id="entryView" class="view active">
-    <section class="card hero">
-      <span class="badge">Live-Berechnung</span>
-      <h2>Flugdienstzeit prüfen</h2>
-      <p>Werte eingeben, Ergebnis sofort prüfen und den Datensatz erst speichern, wenn alles passt.</p>
-    </section>
-
-    <section class="card">
-      <h3>Einsatzdaten</h3>
-      <div class="grid">
-        <label>Datum<input id="dutyDate" type="date"></label>
-        <label>Kennzeichen / Flug<input id="flightRef" type="text" placeholder="z. B. D-AFAI / LIS–NUE"></label>
-        <label>FDP-Beginn / Reporting<input id="reportTime" type="time" value="15:00"></label>
-        <label>Berechnung um<input id="currentTime" type="time"></label>
-        <label>Akklimatisation
-          <select id="acclimatisation">
-            <option value="acclimatised">Akklimatisiert</option>
-            <option value="unknown">Unbekannt</option>
-            <option value="unknown_frm">Unbekannt mit FRM</option>
-          </select>
-        </label>
-        <label>Operative Sektoren<select id="sectors"></select><small>Positioning als Passagier nicht mitzählen.</small></label>
-        <label>Zeit bis Off-Block (Min.)<input id="preflightMinutes" type="number" min="0" step="5" value="0"></label>
-        <label>Geplante Blockzeit (Min.)<input id="plannedBlock" type="number" min="0" step="5" value="0"></label>
-      </div>
-
-      <details>
-        <summary>Weitere Angaben</summary>
-        <div class="grid details-grid">
-          <label class="check"><input id="positioning" type="checkbox" checked><span>Positioning vor dem operativen Flug</span></label>
-          <label class="check"><input id="plannedExtension" type="checkbox"><span>Geplante Verlängerung laut OM-A</span></label>
-          <label>Verlängerung<select id="extensionMinutes"><option value="60">+1:00 h</option><option value="45">+0:45 h</option><option value="30">+0:30 h</option><option value="15">+0:15 h</option></select></label>
-          <label>Notiz<textarea id="notes" rows="3" placeholder="Besonderheiten, Crew Control, Delay …"></textarea></label>
-        </div>
-      </details>
-    </section>
-
-    <section id="resultCard" class="card result" aria-live="polite">
-      <div class="result-top">
-        <div><div class="eyebrow">Verbleibende FDP</div><div id="remainingValue" class="big-value">–</div></div>
-        <div id="statusPill" class="status">–</div>
-      </div>
-      <div class="result-grid">
-        <div class="metric"><span>Basislimit</span><strong id="baseLimit">–</strong></div>
-        <div class="metric"><span>Spätestes FDP-Ende</span><strong id="latestEnd">–</strong></div>
-        <div class="metric"><span>Bisherige FDP</span><strong id="elapsed">–</strong></div>
-        <div class="metric"><span>Geplanter Abschluss</span><strong id="plannedEnd">–</strong></div>
-        <div class="metric"><span>Reserve nach Planung</span><strong id="plannedMargin">–</strong></div>
-      </div>
-      <div id="message" class="message"></div>
-      <div class="action-row">
-        <button id="saveBtn" class="primary">Datensatz speichern</button>
-        <button id="resetBtn" class="ghost">Eingabe leeren</button>
-      </div>
-    </section>
-  </section>
-
-  <section id="archiveView" class="view">
-    <section class="card">
-      <div class="archive-head">
-        <div><div class="eyebrow">Gespeicherte Einsätze</div><h2>Monatsübersicht</h2></div>
-        <label>Monat<input id="monthFilter" type="month"></label>
-      </div>
-      <div class="summary-grid">
-        <div class="metric"><span>Datensätze</span><strong id="monthCount">0</strong></div>
-        <div class="metric"><span>FDP gesamt</span><strong id="monthFdp">0:00 h</strong></div>
-        <div class="metric"><span>Block geplant</span><strong id="monthBlock">0:00 h</strong></div>
-      </div>
-      <div class="action-row">
-        <button id="pdfBtn" class="primary">Monat als PDF exportieren</button>
-        <button id="csvBtn" class="ghost">CSV exportieren</button>
-      </div>
-    </section>
-
-    <section class="card table-card">
-      <div id="emptyState" class="empty">Für diesen Monat sind keine Datensätze gespeichert.</div>
-      <div class="table-wrap">
-        <table id="recordsTable">
-          <thead><tr><th>Datum</th><th>Flug</th><th>Report</th><th>FDP</th><th>Limit</th><th>Reserve</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-  </section>
-
-  <section class="card info">
-    <h3>Hinweis</h3>
-    <p>Rechen- und Dokumentationshilfe. Maßgeblich bleiben das genehmigte FTL-Schema, OM-A, Crew Control und die tatsächliche Fatigue-Situation. Commander’s Discretion wird nicht automatisch eingerechnet.</p>
-  </section>
-</main>
-<footer>Version 1.1.0 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
-<script src="app.js"></script>
-</body>
-</html>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b1f33"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><title>EASA FTL Logbook</title><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css"><link rel="apple-touch-icon" href="icon.svg"></head><body>
+<header class="app-header"><div><div class="eyebrow">EASA FTL</div><h1>FTL Logbook</h1></div><button id="installBtn" class="ghost" hidden>Installieren</button></header>
+<nav class="tabs"><button class="tab active" data-view="entryView">Eingabe</button><button class="tab" data-view="archiveView">Archiv</button></nav>
+<main><section id="entryView" class="view active"><section class="card hero"><span class="badge">Live-Berechnung</span><h2>Flugdienstzeit planen</h2><p>Start und Ziel per ICAO eingeben. Ortszeiten und Zeitzonen werden automatisch berücksichtigt.</p></section>
+<section class="card"><h3>Einsatzdaten</h3><div class="grid">
+<label>Dienst-Datum<input id="dutyDate" type="date"></label><label>Kennzeichen / Flug<input id="flightRef" type="text" placeholder="z. B. D-AFAI"></label>
+<label>Startflughafen (ICAO)<input id="departureIcao" type="text" maxlength="4" autocomplete="off" placeholder="z. B. EDDN"><small id="departureInfo">ICAO-Kennung eingeben</small></label>
+<label>Zielflughafen (ICAO)<input id="arrivalIcao" type="text" maxlength="4" autocomplete="off" placeholder="z. B. LPPT"><small id="arrivalInfo">ICAO-Kennung eingeben</small></label>
+<label>FDP-Beginn / Reporting<input id="reportTime" type="time" value="15:00"><small>Ortszeit am Startflughafen</small></label>
+<label>(Voraussichtliche) ON-Block<input id="onBlockTime" type="time" value="03:00"><small>Ortszeit am Zielflughafen</small></label>
+<label>ON-Block-Datum<input id="onBlockDate" type="date"><small>Wichtig bei Nachtflug/Datumswechsel</small></label>
+<label>Akklimatisation<select id="acclimatisation"><option value="acclimatised">Akklimatisiert</option><option value="unknown">Unbekannt</option><option value="unknown_frm">Unbekannt mit FRM</option></select></label>
+<label>Operative Sektoren<select id="sectors"></select><small>Positioning als Passagier nicht mitzählen.</small></label></div>
+<details><summary>Weitere Angaben</summary><div class="grid details-grid"><label class="check"><input id="positioning" type="checkbox" checked><span>Positioning vor dem operativen Flug</span></label><label class="check"><input id="plannedExtension" type="checkbox"><span>Geplante Verlängerung laut OM-A</span></label><label>Verlängerung<select id="extensionMinutes"><option value="60">+1:00 h</option><option value="45">+0:45 h</option><option value="30">+0:30 h</option><option value="15">+0:15 h</option></select></label><label>Notiz<textarea id="notes" rows="3" placeholder="Besonderheiten, Crew Control, Delay …"></textarea></label></div></details></section>
+<section id="resultCard" class="card result" aria-live="polite"><div class="result-top"><div><div class="eyebrow">Geplante FDP</div><div id="plannedFdpValue" class="big-value">–</div></div><div id="statusPill" class="status">–</div></div><div class="result-grid"><div class="metric"><span>Basislimit</span><strong id="baseLimit">–</strong></div><div class="metric"><span>Spätestes FDP-Ende</span><strong id="latestEnd">–</strong></div><div class="metric"><span>Report in UTC</span><strong id="reportUtc">–</strong></div><div class="metric"><span>ON-Block in UTC</span><strong id="onBlockUtc">–</strong></div><div class="metric"><span>Reserve</span><strong id="plannedMargin">–</strong></div></div><div id="message" class="message"></div><div class="action-row"><button id="saveBtn" class="primary">Datensatz speichern</button><button id="resetBtn" class="ghost">Eingabe leeren</button></div></section></section>
+<section id="archiveView" class="view"><section class="card"><div class="archive-head"><div><div class="eyebrow">Gespeicherte Einsätze</div><h2>Monatsübersicht</h2></div><label>Monat<input id="monthFilter" type="month"></label></div><div class="summary-grid"><div class="metric"><span>Datensätze</span><strong id="monthCount">0</strong></div><div class="metric"><span>Geplante FDP gesamt</span><strong id="monthFdp">0:00 h</strong></div></div><div class="action-row"><button id="pdfBtn" class="primary">Monat als PDF exportieren</button><button id="csvBtn" class="ghost">CSV exportieren</button></div></section><section class="card table-card"><div id="emptyState" class="empty">Für diesen Monat sind keine Datensätze gespeichert.</div><div class="table-wrap"><table id="recordsTable"><thead><tr><th>Datum</th><th>Route</th><th>Report</th><th>ON-Block</th><th>FDP</th><th>Limit</th><th>Reserve</th><th></th></tr></thead><tbody></tbody></table></div></section></section>
+<section class="card info"><h3>Hinweis</h3><p>Die Zeitzonenberechnung nutzt IANA-Zeitzonen einschließlich Sommerzeit. Bei „akklimatisiert“ wird die Ortszeit des Startflughafens als Referenzzeit verwendet. Maßgeblich bleiben das genehmigte FTL-Schema, OM-A und Crew Control.</p></section></main><footer>Version 1.2.0 · Airport-/Zeitzonendaten offline gespeichert</footer><script src="app.js"></script></body></html>

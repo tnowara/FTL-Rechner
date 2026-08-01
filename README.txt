@@ -1,16 +1,14 @@
-EASA FTL Logbook PWA 1.1.0
+EASA FTL Logbook PWA 1.2.0
+
+Alle Dateien einschließlich airports.json in das GitHub-Repository hochladen.
+GitHub Pages: Settings > Pages > Deploy from a branch > main > /(root).
 
 Neu:
-- Live-Berechnung während der Eingabe
-- Speicherung ausgewählter Datensätze im lokalen Browser-Speicher
-- Monatsfilter und Monatsstatistik
-- direkter PDF-Export einzelner Monate
-- zusätzlicher CSV-Export
-- Löschen einzelner Datensätze
-- vollständig offline nutzbar
+- Start- und Zielflughafen per ICAO
+- Offline-Datenbank mit IANA-Zeitzonen
+- automatische Sommerzeit- und UTC-Berechnung
+- geplante FDP aus Reporting bis voraussichtlichem ON-Block
+- Monatsarchiv, PDF und CSV
 
-GitHub Pages:
-Alle Dateien in das Repository hochladen und vorhandene Dateien ersetzen.
-Danach in der installierten App einmal neu laden. Bei hartnäckigem Cache ggf. App schließen und erneut öffnen.
-
-Hinweis: Daten sind geräte- und browsergebunden. Browserdaten löschen entfernt auch die gespeicherten Datensätze.
+Wichtig: Maßgeblich bleiben OM-A und das genehmigte FTL-Schema.
+Airport data: airportsdata project (MIT), timezone values IANA-compatible.

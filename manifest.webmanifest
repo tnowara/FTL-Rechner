@@ -1,7 +1,7 @@
 {
   "name": "EASA FTL Logbook",
   "short_name": "FTL Logbook",
-  "description": "FTL-Rechner mit lokaler Speicherung und monatlichem PDF-Export",
+  "description": "Offline FTL-Planer mit ICAO-Flughafen- und Zeitzonendatenbank",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#071521",
