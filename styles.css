@@ -10,3 +10,10 @@
 .time-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media(max-width:760px){.time-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:430px){.time-panel-head{align-items:flex-start;flex-direction:column}.time-grid{grid-template-columns:1fr}}
+
+.special-fields{margin-top:18px;padding:15px;border:1px solid var(--line);border-radius:17px;background:rgba(76,194,255,.05)}
+.rule-note{margin-top:10px;color:var(--muted);font-size:13px;line-height:1.45}
+.edit-banner{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;padding:12px 14px;border-radius:14px;background:rgba(255,200,87,.12);color:var(--warn)}
+.small-btn{padding:8px 11px;font-size:12px}
+.action-cell{display:flex;gap:6px;min-width:155px}.delete-btn{color:var(--danger)}
+@media(max-width:600px){.edit-banner{align-items:flex-start;flex-direction:column}.action-cell{min-width:140px;flex-direction:column}}

@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#0b1f33">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>EASA FTL Logbook</title>
+  <title>FAI FTL Logbook</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
   <link rel="apple-touch-icon" href="icon.svg">
 </head>
 <body>
 <header class="app-header">
-  <div><div class="eyebrow">EASA FTL</div><h1>FTL Logbook</h1></div>
+  <div><div class="eyebrow">FAI OM-A CH 7</div><h1>FTL Logbook</h1></div>
   <button id="installBtn" class="ghost" hidden>Installieren</button>
 </header>
 
@@ -23,143 +23,198 @@
 </nav>
 
 <main>
-  <section id="entryView" class="view active">
-    <section class="card hero">
-      <span class="badge">Live-Berechnung</span>
-      <h2>Flugdienstzeit prüfen</h2>
-      <p>Ortszeit oder UTC eingeben – die jeweils andere Zeit wird automatisch anhand der Flughafen-Zeitzone berechnet.</p>
-    </section>
+<section id="entryView" class="view active">
+  <section class="card hero">
+    <span class="badge">Live-Berechnung</span>
+    <h2>Flugdienst- und Ruhezeit prüfen</h2>
+    <p>UTC steht bei allen Zeitfeldern zuerst. Ortszeit und UTC werden anhand der ICAO-Zeitzone gegenseitig synchronisiert.</p>
+  </section>
 
-    <section class="card">
-      <h3>Einsatzdaten</h3>
+  <section class="card">
+    <div class="edit-banner hidden" id="editBanner">
+      <strong>Datensatz wird bearbeitet</strong>
+      <button id="cancelEditBtn" class="ghost small-btn">Bearbeitung abbrechen</button>
+    </div>
+
+    <h3>Einsatzdaten</h3>
+    <div class="grid">
+      <label>Kennzeichen / Flug
+        <input id="flightRef" type="text" placeholder="z. B. D-AFAI">
+      </label>
+      <label>Operative Sektoren
+        <select id="sectors"></select>
+        <small>Positioning als Passagier nicht mitzählen.</small>
+      </label>
+      <label>Startflughafen (ICAO)
+        <input id="departureIcao" type="text" maxlength="4" autocomplete="off" placeholder="z. B. EDDN">
+        <small id="departureInfo">ICAO-Kennung eingeben</small>
+      </label>
+      <label>Zielflughafen (ICAO)
+        <input id="arrivalIcao" type="text" maxlength="4" autocomplete="off" placeholder="z. B. LPPT">
+        <small id="arrivalInfo">ICAO-Kennung eingeben</small>
+      </label>
+      <label>Home Base (ICAO)
+        <input id="homeBaseIcao" type="text" maxlength="4" value="EDDN">
+        <small id="homeBaseInfo">Home Base für WOCL und Ruhezeit</small>
+      </label>
+      <label>Sonderregelung
+        <select id="specialRule">
+          <option value="basic">Keine – Basisregelung</option>
+          <option value="planned_extension">Geplante FDP-Verlängerung (7.4.5)</option>
+          <option value="split2">Split Duty – Break mindestens 2 h (7.4.9.1)</option>
+          <option value="split3">Split Duty – Break mindestens 3 h (7.4.9.2)</option>
+          <option value="heavy_ambulance">Heavy Crew – Ambulance, max. 18 h (7.6)</option>
+          <option value="heavy_pax_bd700">Heavy Crew – Pax/Cargo BD700, max. 14 h (7.6)</option>
+          <option value="commander">Commander’s Discretion (7.7)</option>
+          <option value="standby">Standby vor FDP (7.8)</option>
+          <option value="reduced_rest">Reduced Rest mit LBA-Genehmigung (7.5.3)</option>
+          <option value="post_positioning">Positioning nach letztem Sektor (7.4.8)</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="specialFields" class="special-fields">
       <div class="grid">
-        <label>Kennzeichen / Flug
-          <input id="flightRef" type="text" placeholder="z. B. D-AFAI">
+        <label id="specialMinutesWrap" class="hidden">
+          <span id="specialMinutesLabel">Dauer</span>
+          <input id="specialMinutes" type="number" min="0" step="5" value="0">
+          <small id="specialMinutesHelp"></small>
         </label>
-        <label>Operative Sektoren
-          <select id="sectors"></select>
-          <small>Positioning als Passagier nicht mitzählen.</small>
+        <label id="extensionRestWrap" class="hidden">Ruhezeit bei geplanter Verlängerung
+          <select id="extensionRestMode">
+            <option value="post4">Post-Flight-Ruhezeit +4:00 h</option>
+            <option value="split2">Pre- und Post-Flight jeweils +2:00 h</option>
+          </select>
         </label>
-        <label>Startflughafen (ICAO)
-          <input id="departureIcao" type="text" maxlength="4" autocomplete="off" placeholder="z. B. EDDN">
-          <small id="departureInfo">ICAO-Kennung eingeben</small>
+        <label id="commanderCrewWrap" class="check hidden">
+          <input id="augmentedCrew" type="checkbox"><span>Augmented Flight Crew</span>
         </label>
-        <label>Zielflughafen (ICAO)
-          <input id="arrivalIcao" type="text" maxlength="4" autocomplete="off" placeholder="z. B. LPPT">
-          <small id="arrivalInfo">ICAO-Kennung eingeben</small>
+        <label id="standbyFacilityWrap" class="hidden">Standby-Unterbringung
+          <select id="standbyFacility">
+            <option value="no_sleep">Kein ruhiger Schlafraum</option>
+            <option value="sleep_under2">Schlafraum, Standby unter 2 h</option>
+            <option value="sleep_break">Schlafraum – als Break anrechenbar</option>
+            <option value="home_rest">Zu Hause/geeignete Unterkunft – als Rest anrechenbar</option>
+          </select>
         </label>
-        <label>Home Base (ICAO)
-          <input id="homeBaseIcao" type="text" maxlength="4" value="EDDN" placeholder="z. B. EDDN">
-          <small id="homeBaseInfo">Home Base für WOCL und Ruhezeit</small>
+        <label id="reducedRestWrap" class="hidden">Reduzierung der Ruhezeit
+          <select id="reducedRestMinutes">
+            <option value="60">−1:00 h</option>
+            <option value="120">−2:00 h</option>
+          </select>
+          <small>Nur mit schriftlicher LBA-Genehmigung; niemals unter 10 Stunden.</small>
         </label>
       </div>
+      <div id="specialRuleNote" class="rule-note">Berechnung nach der normalen OM-A-Basisregelung.</div>
+    </div>
 
-      <div class="time-panel">
-        <div class="time-panel-head">
-          <div><div class="eyebrow">FDP-Beginn / Reporting</div><strong>Startflughafen</strong></div>
-          <span id="reportSyncBadge" class="sync-badge">Ortszeit → UTC</span>
-        </div>
-        <div class="grid time-grid">
-          <label>Datum Ortszeit<input id="dutyDate" type="date"></label>
-          <label>Reporting Ortszeit<input id="reportTime" type="time" value="15:00"></label>
-          <label>Datum UTC<input id="reportUtcDate" type="date"></label>
-          <label>Reporting UTC<input id="reportUtcTime" type="time"></label>
-        </div>
+    <div class="time-panel">
+      <div class="time-panel-head">
+        <div><div class="eyebrow">FDP-Beginn / Reporting</div><strong>Startflughafen</strong></div>
+        <span id="reportSyncBadge" class="sync-badge">UTC → Ortszeit</span>
       </div>
+      <div class="grid time-grid">
+        <label>Datum UTC<input id="reportUtcDate" type="date"></label>
+        <label>Reporting UTC<input id="reportUtcTime" type="time"></label>
+        <label>Datum Ortszeit<input id="dutyDate" type="date"></label>
+        <label>Reporting Ortszeit<input id="reportTime" type="time" value="15:00"></label>
+      </div>
+    </div>
 
-      <div class="time-panel">
-        <div class="time-panel-head">
-          <div><div class="eyebrow">(voraussichtliche) ON-Block</div><strong>Zielflughafen</strong></div>
-          <span id="onBlockSyncBadge" class="sync-badge">Ortszeit → UTC</span>
-        </div>
-        <div class="grid time-grid">
-          <label>Datum Ortszeit<input id="onBlockDate" type="date"></label>
-          <label>ON-Block Ortszeit<input id="onBlockTime" type="time" value="03:00"></label>
-          <label>Datum UTC<input id="onBlockUtcDate" type="date"></label>
-          <label>ON-Block UTC<input id="onBlockUtcTime" type="time"></label>
-        </div>
+    <div class="time-panel">
+      <div class="time-panel-head">
+        <div><div class="eyebrow">(voraussichtliche) ON-Block</div><strong>Zielflughafen</strong></div>
+        <span id="onBlockSyncBadge" class="sync-badge">UTC → Ortszeit</span>
       </div>
+      <div class="grid time-grid">
+        <label>Datum UTC<input id="onBlockUtcDate" type="date"></label>
+        <label>ON-Block UTC<input id="onBlockUtcTime" type="time"></label>
+        <label>Datum Ortszeit<input id="onBlockDate" type="date"></label>
+        <label>ON-Block Ortszeit<input id="onBlockTime" type="time" value="03:00"></label>
+      </div>
+    </div>
 
-      <details>
-        <summary>Weitere Angaben</summary>
-        <div class="grid details-grid">
-          <label class="check"><input id="positioning" type="checkbox" checked><span>Positioning nach Reporting vor dem operativen Flug</span></label>
-          <label class="check"><input id="awayOver48" type="checkbox"><span>Mehr als 48 Stunden außerhalb der Home-Base-Zeitzone</span></label>
-          <label class="check"><input id="plannedExtension" type="checkbox"><span>Geplante Verlängerung laut OM-A</span></label>
-          <label>Verlängerung
-            <select id="extensionMinutes">
-              <option value="60">+1:00 h</option><option value="45">+0:45 h</option>
-              <option value="30">+0:30 h</option><option value="15">+0:15 h</option>
-            </select>
-          </label>
-          <label>Ruhezeit bei geplanter Verlängerung
-            <select id="extensionRestMode">
-              <option value="post4">Post-Flight-Ruhezeit +4:00 h</option>
-              <option value="split2">Pre- und Post-Flight jeweils +2:00 h</option>
-            </select>
-          </label>
-          <label>Notiz<textarea id="notes" rows="3" placeholder="Besonderheiten, Crew Control, Delay …"></textarea></label>
-        </div>
-      </details>
-    </section>
+    <div class="time-panel">
+      <div class="time-panel-head">
+        <div><div class="eyebrow">Dienstende</div><strong>Bearbeitbar – Standard ON-Block +15 Minuten</strong></div>
+        <button id="autoDutyEndBtn" class="ghost small-btn" type="button">Auf ON +15 setzen</button>
+      </div>
+      <div class="grid time-grid">
+        <label>Datum UTC<input id="dutyEndUtcDate" type="date"></label>
+        <label>Dienstende UTC<input id="dutyEndUtcTime" type="time"></label>
+        <label>Datum Ortszeit<input id="dutyEndLocalDate" type="date"></label>
+        <label>Dienstende Ortszeit<input id="dutyEndLocalTime" type="time"></label>
+      </div>
+    </div>
 
-    <section id="resultCard" class="card result" aria-live="polite">
-      <div class="result-top">
-        <div><div class="eyebrow">Geplante Flight Duty</div><div id="plannedFdpValue" class="big-value">–</div></div>
-        <div id="statusPill" class="status">–</div>
+    <details>
+      <summary>Weitere Angaben</summary>
+      <div class="grid details-grid">
+        <label class="check"><input id="positioning" type="checkbox" checked><span>Positioning nach Reporting vor dem operativen Flug</span></label>
+        <label class="check"><input id="awayOver48" type="checkbox"><span>Mehr als 48 Stunden außerhalb der Home-Base-Zeitzone</span></label>
+        <label>Notiz<textarea id="notes" rows="3" placeholder="Besonderheiten, Crew Control, Delay …"></textarea></label>
       </div>
-      <div class="result-grid">
-        <div class="metric"><span>Basislimit</span><strong id="baseLimit">–</strong></div>
-        <div class="metric"><span>Spätestes FDP-Ende</span><strong id="latestEnd">–</strong></div>
-        <div class="metric"><span>Reporting</span><strong id="reportUtc">–</strong></div>
-        <div class="metric"><span>ON-Block</span><strong id="onBlockUtc">–</strong></div>
-        <div class="metric"><span>Reserve nach Planung</span><strong id="plannedMargin">–</strong></div>
-        <div class="metric"><span>WOCL-Reduzierung</span><strong id="woclReduction">–</strong></div>
-        <div class="metric"><span>Dienstende</span><strong id="dutyEnd">–</strong></div>
-        <div class="metric"><span>Mindest-Ruhezeit</span><strong id="minimumRest">–</strong></div>
-        <div class="metric"><span>Frühestes nächstes Reporting</span><strong id="earliestNextReport">–</strong></div>
-      </div>
-      <div id="message" class="message"></div>
-      <div class="action-row">
-        <button id="saveBtn" class="primary">Datensatz speichern</button>
-        <button id="resetBtn" class="ghost">Eingabe leeren</button>
-      </div>
-    </section>
+    </details>
   </section>
 
-  <section id="archiveView" class="view">
-    <section class="card">
-      <div class="archive-head">
-        <div><div class="eyebrow">Gespeicherte Einsätze</div><h2>Monatsübersicht</h2></div>
-        <label>Monat<input id="monthFilter" type="month"></label>
-      </div>
-      <div class="summary-grid">
-        <div class="metric"><span>Datensätze</span><strong id="monthCount">0</strong></div>
-        <div class="metric"><span>FDP gesamt</span><strong id="monthFdp">0:00 h</strong></div>
-      </div>
-      <div class="action-row">
-        <button id="pdfBtn" class="primary">Monat als PDF exportieren</button>
-        <button id="csvBtn" class="ghost">CSV exportieren</button>
-      </div>
-    </section>
-
-    <section class="card table-card">
-      <div id="emptyState" class="empty">Für diesen Monat sind keine Datensätze gespeichert.</div>
-      <div class="table-wrap">
-        <table id="recordsTable">
-          <thead><tr><th>Datum</th><th>Flug</th><th>Report</th><th>ON-Block</th><th>FDP</th><th>Limit</th><th>Reserve</th><th>Ruhezeit</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+  <section id="resultCard" class="card result" aria-live="polite">
+    <div class="result-top">
+      <div><div class="eyebrow">Geplante Flight Duty</div><div id="plannedFdpValue" class="big-value">–</div></div>
+      <div id="statusPill" class="status">–</div>
+    </div>
+    <div class="result-grid">
+      <div class="metric"><span>Angewandte Regel</span><strong id="appliedRule">–</strong></div>
+      <div class="metric"><span>FDP-Limit</span><strong id="baseLimit">–</strong></div>
+      <div class="metric"><span>Spätestes FDP-Ende</span><strong id="latestEnd">–</strong></div>
+      <div class="metric"><span>Reporting</span><strong id="reportUtc">–</strong></div>
+      <div class="metric"><span>ON-Block</span><strong id="onBlockUtc">–</strong></div>
+      <div class="metric"><span>Reserve nach Planung</span><strong id="plannedMargin">–</strong></div>
+      <div class="metric"><span>WOCL-Reduzierung</span><strong id="woclReduction">–</strong></div>
+      <div class="metric"><span>Dienstende</span><strong id="dutyEnd">–</strong></div>
+      <div class="metric"><span>Dienstzeit</span><strong id="dutyDuration">–</strong></div>
+      <div class="metric"><span>Mindest-Ruhezeit</span><strong id="minimumRest">–</strong></div>
+      <div class="metric"><span>Frühestes nächstes Reporting</span><strong id="earliestNextReport">–</strong></div>
+    </div>
+    <div id="message" class="message"></div>
+    <div class="action-row">
+      <button id="saveBtn" class="primary">Datensatz speichern</button>
+      <button id="resetBtn" class="ghost">Eingabe leeren</button>
+    </div>
   </section>
+</section>
 
-  <section class="card info">
-    <h3>Hinweis</h3>
-    <p>Berechnung nach FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0 vom 08.11.2024. Sonderfälle wie Split Duty, Heavy Crew, Standby und Commander’s Discretion werden nicht automatisch eingerechnet.</p>
+<section id="archiveView" class="view">
+  <section class="card">
+    <div class="archive-head">
+      <div><div class="eyebrow">Gespeicherte Einsätze</div><h2>Monatsübersicht</h2></div>
+      <label>Monat<input id="monthFilter" type="month"></label>
+    </div>
+    <div class="summary-grid">
+      <div class="metric"><span>Datensätze</span><strong id="monthCount">0</strong></div>
+      <div class="metric"><span>FDP gesamt</span><strong id="monthFdp">0:00 h</strong></div>
+    </div>
+    <div class="action-row">
+      <button id="pdfBtn" class="primary">Monat als PDF exportieren</button>
+      <button id="csvBtn" class="ghost">CSV exportieren</button>
+    </div>
   </section>
+  <section class="card table-card">
+    <div id="emptyState" class="empty">Für diesen Monat sind keine Datensätze gespeichert.</div>
+    <div class="table-wrap">
+      <table id="recordsTable">
+        <thead><tr><th>Datum</th><th>Flug</th><th>Report</th><th>ON-Block</th><th>FDP</th><th>Regel</th><th>Ruhezeit</th><th>Aktionen</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</section>
+
+<section class="card info">
+  <h3>Hinweis</h3>
+  <p>Berechnung nach FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0 vom 08.11.2024. Bei genehmigungs-, ereignis- oder nachweispflichtigen Sonderregeln zeigt die App zusätzliche Warnhinweise; sie ersetzt keine Freigabe durch Crew Control, Commander oder LBA.</p>
+</section>
 </main>
-<footer>Version 1.4.0 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
+<footer>Version 1.5.0 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
 <script src="app.js"></script>
 </body>
 </html>

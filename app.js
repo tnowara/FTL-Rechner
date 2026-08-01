@@ -1,41 +1,248 @@
 const $=id=>document.getElementById(id),KEY='ftl-logbook-records-v4';
-let currentResult=null,airports=new Map(),syncing=false,reportInputMode='local',onBlockInputMode='local';
+let currentResult=null,airports=new Map(),syncing=false;
+let reportInputMode='utc',onBlockInputMode='utc',dutyEndInputMode='utc',dutyEndManual=false,editingId=null;
+
 const pad=n=>String(n).padStart(2,'0');
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
 for(let i=1;i<=10;i++){const o=document.createElement('option');o.value=i;o.textContent=i===1?'1 Sektor':`${i} Sektoren`;$('sectors').appendChild(o)}
 $('dutyDate').value=today();$('onBlockDate').value=today();$('monthFilter').value=today().slice(0,7);
-function toMinutes(t){const [h,m]=t.split(':').map(Number);return h*60+m}
+
+function toMinutes(t){const [h,m]=String(t||'00:00').split(':').map(Number);return h*60+m}
 function formatDuration(v){if(!Number.isFinite(v))return '–';const s=v<0?'−':'';v=Math.abs(Math.round(v));return `${s}${Math.floor(v/60)}:${pad(v%60)} h`}
 function formatDate(s){if(!s)return '–';const [y,m,d]=s.split('-');return `${d}.${m}.${y}`}
 function datePartsUtc(ms){const d=new Date(ms);return {date:`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`,time:`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`}}
 function formatUtc(ms){if(!Number.isFinite(ms))return '–';const p=datePartsUtc(ms);return `${formatDate(p.date)} ${p.time} UTC`}
 function utcFieldsToMs(date,time){if(!date||!time)return NaN;const [y,m,d]=date.split('-').map(Number),[hh,mm]=time.split(':').map(Number);return Date.UTC(y,m-1,d,hh,mm)}
 function zonedToUtc(date,time,tz){if(!date||!time||!tz)return NaN;const [y,m,d]=date.split('-').map(Number),[hh,mm]=time.split(':').map(Number);const wanted=Date.UTC(y,m-1,d,hh,mm);let guess=wanted;const fmt=new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});for(let i=0;i<5;i++){const q={};fmt.formatToParts(new Date(guess)).forEach(x=>{if(x.type!=='literal')q[x.type]=+x.value});const shown=Date.UTC(q.year,q.month-1,q.day,q.hour,q.minute);guess+=wanted-shown}return guess}
-function utcToZonedFields(ms,tz){const fmt=new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}),q={};fmt.formatToParts(new Date(ms)).forEach(x=>{if(x.type!=='literal')q[x.type]=x.value});return {date:`${q.year}-${q.month}-${q.day}`,time:`${q.hour}:${q.minute}`}}
+function utcToZonedFields(ms,tz){const fmt=new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});const q={};fmt.formatToParts(new Date(ms)).forEach(x=>{if(x.type!=='literal')q[x.type]=x.value});return {date:`${q.year}-${q.month}-${q.day}`,time:`${q.hour}:${q.minute}`}}
 function localClock(ms,tz){const p=utcToZonedFields(ms,tz);return `${formatDate(p.date)} ${p.time} lokal`}
-function airportInfo(code,el,label='Flughafen'){const a=airports.get(code);if(!code){el.textContent=`${label} eingeben`;el.className=''}else if(!a){el.textContent='Flughafen nicht in der Datenbank';el.className='field-error'}else{el.textContent=`${a.n}${a.c?' · '+a.c:''} · ${a.t}`;el.className='field-ok'}return a}
-function setSyncBadge(which,mode){$(which==='report'?'reportSyncBadge':'onBlockSyncBadge').textContent=mode==='utc'?'UTC → Ortszeit':'Ortszeit → UTC'}
-function syncReport(source){if(syncing)return;const dep=airports.get($('departureIcao').value.trim().toUpperCase());if(!dep)return;syncing=true;if(source==='utc'){reportInputMode='utc';const ms=utcFieldsToMs($('reportUtcDate').value,$('reportUtcTime').value);if(Number.isFinite(ms)){const p=utcToZonedFields(ms,dep.t);$('dutyDate').value=p.date;$('reportTime').value=p.time}}else{reportInputMode='local';const ms=zonedToUtc($('dutyDate').value,$('reportTime').value,dep.t);if(Number.isFinite(ms)){const p=datePartsUtc(ms);$('reportUtcDate').value=p.date;$('reportUtcTime').value=p.time}}setSyncBadge('report',reportInputMode);syncing=false}
-function syncOnBlock(source){if(syncing)return;const arr=airports.get($('arrivalIcao').value.trim().toUpperCase());if(!arr)return;syncing=true;if(source==='utc'){onBlockInputMode='utc';const ms=utcFieldsToMs($('onBlockUtcDate').value,$('onBlockUtcTime').value);if(Number.isFinite(ms)){const p=utcToZonedFields(ms,arr.t);$('onBlockDate').value=p.date;$('onBlockTime').value=p.time}}else{onBlockInputMode='local';const ms=zonedToUtc($('onBlockDate').value,$('onBlockTime').value,arr.t);if(Number.isFinite(ms)){const p=datePartsUtc(ms);$('onBlockUtcDate').value=p.date;$('onBlockUtcTime').value=p.time}}setSyncBadge('onBlock',onBlockInputMode);syncing=false}
-function offsetHours(tz,ms){const p=utcToZonedFields(ms,tz);const localAsUtc=Date.UTC(...p.date.split('-').map((x,i)=>+x-(i===1?1:0)),...p.time.split(':').map(Number));return (localAsUtc-ms)/3600000}
-function standardOffset(tz,year){return Math.min(offsetHours(tz,Date.UTC(year,0,15,12)),offsetHours(tz,Date.UTC(year,6,15,12)))}
-function overlap(a,b,c,d){return Math.max(0,Math.min(b,d)-Math.max(a,c))}
-function woclData(startMs,endMs,tz){let total=0,startInside=false;const startLocal=utcToZonedFields(startMs,tz);const base=new Date(Date.UTC(...startLocal.date.split('-').map((x,i)=>+x-(i===1?1:0))));for(let i=-1;i<=3;i++){const d=new Date(base.getTime()+i*86400000),ds=`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;const ws=zonedToUtc(ds,'02:00',tz),we=zonedToUtc(ds,'06:00',tz);const ov=overlap(startMs,endMs,ws,we)/60000;total+=ov;if(startMs>=ws&&startMs<we)startInside=true}const reduction=Math.min(120,startInside?total:total*0.5);return {minutes:total,reduction,startInside}}
+function offsetAt(tz,ms){const p=utcToZonedFields(ms,tz);return Math.round((zonedToUtc(p.date,p.time,'UTC')-ms)/3600000)}
+function standardOffset(tz,year){return Math.min(offsetAt(tz,Date.UTC(year,0,15,12)),offsetAt(tz,Date.UTC(year,6,15,12)))}
+function airportInfo(code,el,prefix=''){const a=airports.get(code);if(!code){el.textContent=prefix?`${prefix} eingeben`:'ICAO-Kennung eingeben';el.className=''}else if(!a){el.textContent='Flughafen nicht in der Datenbank';el.className='field-error'}else{el.textContent=`${a.n}${a.c?' · '+a.c:''} · ${a.t}`;el.className='field-ok'}return a}
+function setSyncBadge(which,mode){const id=which==='report'?'reportSyncBadge':'onBlockSyncBadge';$(id).textContent=mode==='utc'?'UTC → Ortszeit':'Ortszeit → UTC'}
+function setUtcFields(prefix,ms){const p=datePartsUtc(ms);$(`${prefix}UtcDate`).value=p.date;$(`${prefix}UtcTime`).value=p.time}
+function setLocalFields(dateId,timeId,ms,tz){const p=utcToZonedFields(ms,tz);$(dateId).value=p.date;$(timeId).value=p.time}
+
+function syncReport(source){
+  if(syncing)return;const dep=airports.get($('departureIcao').value.trim().toUpperCase());if(!dep)return;syncing=true;
+  if(source==='utc'){reportInputMode='utc';const ms=utcFieldsToMs($('reportUtcDate').value,$('reportUtcTime').value);if(Number.isFinite(ms))setLocalFields('dutyDate','reportTime',ms,dep.t)}
+  else{reportInputMode='local';const ms=zonedToUtc($('dutyDate').value,$('reportTime').value,dep.t);if(Number.isFinite(ms))setUtcFields('report',ms)}
+  setSyncBadge('report',reportInputMode);syncing=false
+}
+function syncOnBlock(source){
+  if(syncing)return;const arr=airports.get($('arrivalIcao').value.trim().toUpperCase());if(!arr)return;syncing=true;
+  if(source==='utc'){onBlockInputMode='utc';const ms=utcFieldsToMs($('onBlockUtcDate').value,$('onBlockUtcTime').value);if(Number.isFinite(ms))setLocalFields('onBlockDate','onBlockTime',ms,arr.t)}
+  else{onBlockInputMode='local';const ms=zonedToUtc($('onBlockDate').value,$('onBlockTime').value,arr.t);if(Number.isFinite(ms))setUtcFields('onBlock',ms)}
+  setSyncBadge('onBlock',onBlockInputMode);syncing=false
+}
+function syncDutyEnd(source){
+  if(syncing)return;const arr=airports.get($('arrivalIcao').value.trim().toUpperCase());if(!arr)return;syncing=true;
+  if(source==='utc'){dutyEndInputMode='utc';const ms=utcFieldsToMs($('dutyEndUtcDate').value,$('dutyEndUtcTime').value);if(Number.isFinite(ms))setLocalFields('dutyEndLocalDate','dutyEndLocalTime',ms,arr.t)}
+  else{dutyEndInputMode='local';const ms=zonedToUtc($('dutyEndLocalDate').value,$('dutyEndLocalTime').value,arr.t);if(Number.isFinite(ms)){const p=datePartsUtc(ms);$('dutyEndUtcDate').value=p.date;$('dutyEndUtcTime').value=p.time}}
+  syncing=false
+}
+function setAutoDutyEnd(){
+  const on=utcFieldsToMs($('onBlockUtcDate').value,$('onBlockUtcTime').value),arr=airports.get($('arrivalIcao').value.trim().toUpperCase());
+  if(!Number.isFinite(on)||!arr)return;
+  dutyEndManual=false;setUtcFields('dutyEnd',on+15*60000);setLocalFields('dutyEndLocalDate','dutyEndLocalTime',on+15*60000,arr.t)
+}
+
 function baseFdpBySectors(sectors){return 780-Math.min(120,Math.max(0,sectors-2)*30)}
-function calculate(){const depCode=$('departureIcao').value.trim().toUpperCase(),arrCode=$('arrivalIcao').value.trim().toUpperCase(),homeCode=$('homeBaseIcao').value.trim().toUpperCase();$('departureIcao').value=depCode;$('arrivalIcao').value=arrCode;$('homeBaseIcao').value=homeCode;const dep=airportInfo(depCode,$('departureInfo')),arr=airportInfo(arrCode,$('arrivalInfo')),home=airportInfo(homeCode,$('homeBaseInfo'),'Home Base');if(!dep||!arr||!home){clearResult();showStatus('ICAO PRÜFEN','warn','Start, Ziel und Home Base müssen in der Flughafen-Datenbank erkannt werden.');return}syncReport(reportInputMode);syncOnBlock(onBlockInputMode);const reportUtc=utcFieldsToMs($('reportUtcDate').value,$('reportUtcTime').value),onUtc=utcFieldsToMs($('onBlockUtcDate').value,$('onBlockUtcTime').value);if(!Number.isFinite(reportUtc)||!Number.isFinite(onUtc)){clearResult();return}const plannedFdp=Math.round((onUtc-reportUtc)/60000),sectors=+$('sectors').value;const year=new Date(reportUtc).getUTCFullYear(),homeOff=standardOffset(home.t,year),depOff=standardOffset(dep.t,year),arrOff=standardOffset(arr.t,year),homeDepDiff=Math.abs(homeOff-depOff);const woclTz=(homeDepDiff<=3||!$('awayOver48').checked)?home.t:dep.t;const wocl=woclData(reportUtc,onUtc,woclTz);let limit=baseFdpBySectors(sectors)-wocl.reduction;let extensionValid=true,extensionReason='';if($('plannedExtension').checked){const ext=+$('extensionMinutes').value;if(sectors>=6){extensionValid=false;extensionReason='Geplante Verlängerung ist bei sechs oder mehr Sektoren nicht zulässig.'}else if(wocl.minutes>120&&sectors>2){extensionValid=false;extensionReason='Bei mehr als zwei Stunden WOCL-Encroachment sind höchstens zwei Sektoren zulässig.'}else if(wocl.minutes>0&&wocl.minutes<=120&&sectors>4){extensionValid=false;extensionReason='Bei bis zu zwei Stunden WOCL-Encroachment sind höchstens vier Sektoren zulässig.'}if(extensionValid){limit+=ext;const refStart=utcToZonedFields(reportUtc,woclTz).time,startMin=toMinutes(refStart);if(startMin>=1320||startMin<=299)limit=Math.min(limit,705)}}const margin=limit-plannedFdp,latestUtc=reportUtc+limit*60000,dutyEnd=onUtc+15*60000,dutyMinutes=Math.round((dutyEnd-reportUtc)/60000);let restBase=arrCode===homeCode?Math.max(dutyMinutes,720):Math.max(dutyMinutes,600);const startEndDiff=Math.abs(depOff-arrOff);if(startEndDiff>=4)restBase=Math.max(restBase,840);let extensionRestAdd=0;if($('plannedExtension').checked&&extensionValid)extensionRestAdd=$('extensionRestMode').value==='post4'?240:120;const minimumRest=restBase+extensionRestAdd,earliest=dutyEnd+minimumRest*60000;$('plannedFdpValue').textContent=formatDuration(plannedFdp);$('baseLimit').textContent=formatDuration(limit);$('latestEnd').textContent=`${formatUtc(latestUtc)} / ${localClock(latestUtc,arr.t)}`;$('reportUtc').textContent=`${formatDate($('dutyDate').value)} ${$('reportTime').value} lokal / ${formatUtc(reportUtc)}`;$('onBlockUtc').textContent=`${formatDate($('onBlockDate').value)} ${$('onBlockTime').value} lokal / ${formatUtc(onUtc)}`;$('plannedMargin').textContent=formatDuration(margin);$('woclReduction').textContent=`${formatDuration(wocl.reduction)} (${woclTz})`;$('dutyEnd').textContent=`${formatUtc(dutyEnd)} / ${localClock(dutyEnd,arr.t)}`;$('minimumRest').textContent=formatDuration(minimumRest);$('earliestNextReport').textContent=`${formatUtc(earliest)} / ${localClock(earliest,arr.t)}`;let state='ok',title='RECHNERISCH INNERHALB',msg=`Geplante FDP ${formatDuration(plannedFdp)}, Limit ${formatDuration(limit)}, Mindest-Ruhezeit ${formatDuration(minimumRest)}.`;if(plannedFdp<0){state='danger';title='DATUM PRÜFEN';msg='ON-Block liegt vor dem Reporting.'}else if(!extensionValid){state='danger';title='VERLÄNGERUNG UNZULÄSSIG';msg=extensionReason}else if(margin<0){state='danger';title='NICHT DARSTELLBAR';msg=`Die geplante FDP überschreitet das OM-A-Limit um ${formatDuration(-margin)}.`}else if(margin<30){state='warn';title='KRITISCH';msg=`Nur ${formatDuration(margin)} Reserve. Mindest-Ruhezeit danach: ${formatDuration(minimumRest)}.`}if(dutyMinutes>840){state='danger';title='DIENSTZEIT > 14 H';msg+=' Die ununterbrochene Dienstzeit bis einschließlich 15 Minuten Post-Flight überschreitet 14 Stunden; Sonderregelungen sind nicht berücksichtigt.'}if(startEndDiff>=4)msg+=' Wegen mindestens vier Zeitzonen zwischen Beginn und Ende beträgt die Ruhezeit mindestens 14 Stunden.';if($('plannedExtension').checked&&extensionValid)msg+=` Verlängerungsbedingte Post-Flight-Erhöhung: ${formatDuration(extensionRestAdd)}.`;showStatus(title,state,msg);currentResult={depCode,arrCode,homeCode,depName:dep.n,arrName:arr.n,depTz:dep.t,arrTz:arr.t,homeTz:home.t,reportUtc,onUtc,plannedFdp,sectors,limit,margin,latestUtc,woclMinutes:wocl.minutes,woclReduction:wocl.reduction,woclTz,dutyEnd,dutyMinutes,minimumRest,earliestNextReport:earliest,startEndTimeZoneDiff:startEndDiff,status:title,statusClass:state}}
-function clearResult(){currentResult=null;['plannedFdpValue','baseLimit','latestEnd','reportUtc','onBlockUtc','plannedMargin','woclReduction','dutyEnd','minimumRest','earliestNextReport'].forEach(id=>$(id).textContent='–')}
+function intervalsOverlap(a1,a2,b1,b2){return Math.max(0,Math.min(a2,b2)-Math.max(a1,b1))}
+function woclData(reportUtc,onUtc,tz){
+  let overlap=0,startOverlap=0;
+  const start=new Date(reportUtc-86400000),end=new Date(onUtc+86400000);
+  for(let d=new Date(Date.UTC(start.getUTCFullYear(),start.getUTCMonth(),start.getUTCDate()));d<=end;d=new Date(d.getTime()+86400000)){
+    const ds=`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+    const ws=zonedToUtc(ds,'02:00',tz),we=zonedToUtc(ds,'06:00',tz);
+    const ov=intervalsOverlap(reportUtc,onUtc,ws,we);overlap+=ov;
+    if(reportUtc>=ws&&reportUtc<we)startOverlap=Math.min(onUtc,we)-reportUtc;
+  }
+  const minutes=Math.round(overlap/60000),startsIn=startOverlap>0;
+  return {minutes,startsIn,reduction:Math.min(120,Math.round((startsIn?overlap:overlap*.5)/60000))}
+}
+function ruleName(v){return ({
+  basic:'Basisregelung',planned_extension:'Geplante Verlängerung',split2:'Split Duty ≥2 h',
+  split3:'Split Duty ≥3 h',heavy_ambulance:'Heavy Crew Ambulance',heavy_pax_bd700:'Heavy Crew Pax/Cargo BD700',
+  commander:'Commander’s Discretion',standby:'Standby',reduced_rest:'Reduced Rest',post_positioning:'Positioning nach letztem Sektor'
+})[v]||v}
+
+function updateSpecialFields(){
+  const r=$('specialRule').value;
+  ['specialMinutesWrap','extensionRestWrap','commanderCrewWrap','standbyFacilityWrap','reducedRestWrap'].forEach(id=>$(id).classList.add('hidden'));
+  const show=(id)=>$(id).classList.remove('hidden');
+  let note='Berechnung nach der normalen OM-A-Basisregelung.';
+  if(r==='planned_extension'){show('specialMinutesWrap');show('extensionRestWrap');$('specialMinutesLabel').textContent='Geplante Verlängerung (Minuten)';$('specialMinutes').max=60;$('specialMinutes').value=$('specialMinutes').value||60;$('specialMinutesHelp').textContent='Maximal 60 Minuten; weitere Einschränkungen werden geprüft.';note='OM-A 7.4.5: vorab geplant, höchstens zwei Mal in sieben Tagen; abhängig von Sektoren und WOCL.'}
+  if(r==='split2'){show('specialMinutesWrap');$('specialMinutesLabel').textContent='Break auf dem Boden (Minuten)';$('specialMinutes').min=120;$('specialMinutes').value=Math.max(120,+$('specialMinutes').value||120);$('specialMinutesHelp').textContent='Mindestens 120 Minuten und ruhiger Raum mit Schlafmöglichkeit.';note='OM-A 7.4.9.1: verlängert die Duty auf 14 Stunden, nicht die zulässige FDP.'}
+  if(r==='split3'){show('specialMinutesWrap');$('specialMinutesLabel').textContent='Geplanter Break auf dem Boden (Minuten)';$('specialMinutes').min=180;$('specialMinutes').value=Math.max(180,+$('specialMinutes').value||180);$('specialMinutesHelp').textContent='Mindestens 180 Minuten; ruhiger Schlafraum in unmittelbarer Flugplatznähe.';note='OM-A 7.4.9.2: kontinuierliche Duty bis 18 Stunden; FDP-Limit bleibt bestehen. Max. 10 h Pilotieren und max. zwei Landungen nach dem Break.'}
+  if(r==='heavy_ambulance')note='OM-A 7.6: Heavy Crew Ambulance bis 18 h FDP; max. drei Sektoren, gleicher Duty-Startort, max. ein Escort Passenger.';
+  if(r==='heavy_pax_bd700')note='OM-A 7.6: ausschließlich BD700 Passenger/Cargo mit Heavy Crew bis 14 h FDP.';
+  if(r==='commander'){show('specialMinutesWrap');show('commanderCrewWrap');$('specialMinutesLabel').textContent='Discretion-Verlängerung (Minuten)';$('specialMinutes').min=0;$('specialMinutes').max=180;$('specialMinutes').value=$('specialMinutes').value||60;$('specialMinutesHelp').textContent='Nur für unvorhergesehene Umstände im tatsächlichen Flugbetrieb.';note='OM-A 7.7: nicht planbar; Crew-Konsultation und IQSMS-Report erforderlich. Mit vorab geplanter Verlängerung max. weitere 1 h.'}
+  if(r==='standby'){show('specialMinutesWrap');show('standbyFacilityWrap');$('specialMinutesLabel').textContent='Standby-Dauer vor Reporting (Minuten)';$('specialMinutes').min=0;$('specialMinutes').max='';$('specialMinutesHelp').textContent='Je nach Unterkunft zählt Standby als FDP/Duty, Break oder Rest.';note='OM-A 7.8: Bewertung hängt von Ort, Schlafmöglichkeit, Dauer und angrenzender Ruhezeit ab.'}
+  if(r==='reduced_rest'){show('reducedRestWrap');note='OM-A 7.5.3: nur mit schriftlicher LBA-Genehmigung; maximal zwei Stunden Reduzierung und niemals unter zehn Stunden.'}
+  if(r==='post_positioning'){show('specialMinutesWrap');$('specialMinutesLabel').textContent='Positioning nach ON-Block (Minuten)';$('specialMinutes').min=0;$('specialMinutes').max='';$('specialMinutesHelp').textContent='Wird zur Duty und zur Berechnung der Mindest-Ruhezeit addiert, nicht zur FDP.';note='OM-A 7.4.8: Positioning unmittelbar nach dem operativen Sektor ist für die Mindestruhe zu berücksichtigen.'}
+  $('specialRuleNote').textContent=note;
+}
+
+function calculate(){
+  const depCode=$('departureIcao').value.trim().toUpperCase(),arrCode=$('arrivalIcao').value.trim().toUpperCase(),homeCode=$('homeBaseIcao').value.trim().toUpperCase();
+  $('departureIcao').value=depCode;$('arrivalIcao').value=arrCode;$('homeBaseIcao').value=homeCode;
+  const dep=airportInfo(depCode,$('departureInfo')),arr=airportInfo(arrCode,$('arrivalInfo')),home=airportInfo(homeCode,$('homeBaseInfo'),'Home Base');
+  if(!dep||!arr||!home){clearResult();showStatus('ICAO PRÜFEN','warn','Start, Ziel und Home Base müssen erkannt werden.');return}
+  syncReport(reportInputMode);syncOnBlock(onBlockInputMode);
+  const reportUtc=utcFieldsToMs($('reportUtcDate').value,$('reportUtcTime').value),onUtc=utcFieldsToMs($('onBlockUtcDate').value,$('onBlockUtcTime').value);
+  if(!Number.isFinite(reportUtc)||!Number.isFinite(onUtc)){clearResult();return}
+  if(!dutyEndManual)setAutoDutyEnd(); else syncDutyEnd(dutyEndInputMode);
+  let dutyEnd=utcFieldsToMs($('dutyEndUtcDate').value,$('dutyEndUtcTime').value);
+  if(!Number.isFinite(dutyEnd)){clearResult();return}
+
+  const plannedFdp=Math.round((onUtc-reportUtc)/60000),sectors=+$('sectors').value,rule=$('specialRule').value,specialMin=+$('specialMinutes').value||0;
+  const year=new Date(reportUtc).getUTCFullYear(),homeOff=standardOffset(home.t,year),depOff=standardOffset(dep.t,year),arrOff=standardOffset(arr.t,year);
+  const woclTz=(Math.abs(homeOff-depOff)<=3||!$('awayOver48').checked)?home.t:dep.t;
+  const wocl=woclData(reportUtc,onUtc,woclTz);
+  const normalLimit=baseFdpBySectors(sectors)-wocl.reduction;
+  let limit=normalLimit,dutyLimit=840,valid=true,warnings=[],restAdd=0,standbyDuty=0,postPositioning=0;
+
+  if(rule==='planned_extension'){
+    const ext=Math.min(60,Math.max(0,specialMin));limit+=ext;
+    if(sectors>=6){valid=false;warnings.push('Eine geplante Verlängerung ist bei sechs oder mehr Sektoren unzulässig.')}
+    if(wocl.minutes>120&&sectors>2){valid=false;warnings.push('Bei mehr als zwei Stunden WOCL-Encroachment sind höchstens zwei Sektoren zulässig.')}
+    if(wocl.minutes>0&&wocl.minutes<=120&&sectors>4){valid=false;warnings.push('Bei bis zu zwei Stunden WOCL-Encroachment sind höchstens vier Sektoren zulässig.')}
+    const startMin=toMinutes(utcToZonedFields(reportUtc,woclTz).time);if(startMin>=1320||startMin<=299)limit=Math.min(limit,705);
+    restAdd=$('extensionRestMode').value==='post4'?240:120;
+  }
+  if(rule==='split2'){if(specialMin<120){valid=false;warnings.push('Der Break muss mindestens zwei Stunden dauern.')}dutyLimit=840}
+  if(rule==='split3'){if(specialMin<180){valid=false;warnings.push('Der Break muss mindestens drei Stunden dauern.')}dutyLimit=1080;warnings.push('Zusätzlich sind max. 10 Stunden Pilotieren und max. zwei Landungen nach dem Break einzuhalten.')}
+  if(rule==='heavy_ambulance'){limit=1080;dutyLimit=1080;if(sectors>3){valid=false;warnings.push('Heavy Crew Ambulance ist auf maximal drei Sektoren begrenzt.')}warnings.push('Gleicher Duty-Startort und höchstens ein Escort Passenger erforderlich.')}
+  if(rule==='heavy_pax_bd700'){limit=840;dutyLimit=840;warnings.push('Diese Genehmigung gilt ausschließlich für BD700 Passenger/Cargo.')}
+  if(rule==='commander'){
+    let maxDisc=$('augmentedCrew').checked?180:120;
+    const disc=Math.max(0,specialMin);
+    if(disc>maxDisc){valid=false;warnings.push(`Die gewählte Discretion überschreitet ${formatDuration(maxDisc)}.`)}
+    limit=normalLimit+Math.min(disc,maxDisc);dutyLimit=limit+15;
+    warnings.push('Nur bei unvorhergesehenen Umständen; Crew-Konsultation und IQSMS-Report erforderlich.')
+  }
+  if(rule==='standby'){
+    const facility=$('standbyFacility').value;
+    if(facility==='no_sleep'||facility==='sleep_under2'){standbyDuty=specialMin;warnings.push('Standby wird vollständig als FDP/Duty vor dem Reporting angerechnet.')}
+    else if(facility==='sleep_break'){standbyDuty=specialMin;dutyLimit=Math.max(dutyLimit,840);warnings.push('Standby kann als Break gelten, bleibt aber Duty.')}
+    else warnings.push('Standby wird als Rest behandelt; dies setzt die Voraussetzungen des OM-A 7.8.3 voraus.');
+  }
+  if(rule==='post_positioning'){postPositioning=specialMin;dutyEnd+=postPositioning*60000}
+
+  const effectiveFdp=plannedFdp+standbyDuty;
+  const margin=limit-effectiveFdp,latestUtc=reportUtc+(limit-standbyDuty)*60000;
+  const dutyStart=reportUtc-standbyDuty*60000;
+  const dutyMinutes=Math.round((dutyEnd-dutyStart)/60000);
+  const startEndDiff=Math.abs(depOff-arrOff);
+  let minimumRest=arrCode===homeCode?Math.max(dutyMinutes,720):Math.max(dutyMinutes,600);
+  if(startEndDiff>=4)minimumRest=Math.max(minimumRest,840);
+  minimumRest+=restAdd;
+  if(rule==='reduced_rest')minimumRest=Math.max(600,minimumRest-(+$('reducedRestMinutes').value||0));
+  const earliest=dutyEnd+minimumRest*60000;
+
+  $('plannedFdpValue').textContent=formatDuration(effectiveFdp);
+  $('appliedRule').textContent=ruleName(rule);
+  $('baseLimit').textContent=formatDuration(limit);
+  $('latestEnd').textContent=`${formatUtc(latestUtc)} / ${localClock(latestUtc,arr.t)}`;
+  $('reportUtc').textContent=`${formatUtc(reportUtc)} / ${formatDate($('dutyDate').value)} ${$('reportTime').value} lokal`;
+  $('onBlockUtc').textContent=`${formatUtc(onUtc)} / ${formatDate($('onBlockDate').value)} ${$('onBlockTime').value} lokal`;
+  $('plannedMargin').textContent=formatDuration(margin);
+  $('woclReduction').textContent=`${formatDuration(wocl.reduction)} (${woclTz})`;
+  $('dutyEnd').textContent=`${formatUtc(dutyEnd)} / ${localClock(dutyEnd,arr.t)}`;
+  $('dutyDuration').textContent=formatDuration(dutyMinutes);
+  $('minimumRest').textContent=formatDuration(minimumRest);
+  $('earliestNextReport').textContent=`${formatUtc(earliest)} / ${localClock(earliest,arr.t)}`;
+
+  let state='ok',title='RECHNERISCH INNERHALB';
+  if(plannedFdp<0||dutyEnd<onUtc){state='danger';title='ZEITEN PRÜFEN';warnings.unshift('ON-Block oder Dienstende liegt zeitlich vor dem zugehörigen vorherigen Zeitpunkt.')}
+  else if(!valid){state='danger';title='SONDERREGEL UNZULÄSSIG'}
+  else if(margin<0){state='danger';title='FDP-LIMIT ÜBERSCHRITTEN';warnings.unshift(`Überschreitung um ${formatDuration(-margin)}.`)}
+  else if(dutyMinutes>dutyLimit){state='danger';title='DUTY-LIMIT ÜBERSCHRITTEN';warnings.unshift(`Duty ${formatDuration(dutyMinutes)} überschreitet das für diese Auswahl angesetzte Limit ${formatDuration(dutyLimit)}.`)}
+  else if(margin<30){state='warn';title='KRITISCH';warnings.unshift(`Nur ${formatDuration(margin)} FDP-Reserve.`)}
+  if(startEndDiff>=4)warnings.push('Mindestens vier Zeitzonen zwischen Beginn und Ende: Mindestruhe mindestens 14 Stunden.');
+  if(rule==='reduced_rest')warnings.push('Reduced Rest darf nur mit schriftlicher LBA-Genehmigung angewandt werden.');
+  const msg=`FDP ${formatDuration(effectiveFdp)}, Limit ${formatDuration(limit)}, Duty ${formatDuration(dutyMinutes)}, Mindestruhe ${formatDuration(minimumRest)}.`+(warnings.length?' '+warnings.join(' '):'');
+  showStatus(title,state,msg);
+  currentResult={depCode,arrCode,homeCode,depName:dep.n,arrName:arr.n,depTz:dep.t,arrTz:arr.t,homeTz:home.t,reportUtc,onUtc,plannedFdp:effectiveFdp,sectors,rule,specialMinutes:specialMin,limit,margin,latestUtc,woclMinutes:wocl.minutes,woclReduction:wocl.reduction,woclTz,dutyEnd,dutyMinutes,minimumRest,earliestNextReport:earliest,startEndTimeZoneDiff:startEndDiff,status:title,statusClass:state};
+}
+function clearResult(){currentResult=null;['plannedFdpValue','appliedRule','baseLimit','latestEnd','reportUtc','onBlockUtc','plannedMargin','woclReduction','dutyEnd','dutyDuration','minimumRest','earliestNextReport'].forEach(id=>$(id).textContent='–')}
 function showStatus(title,state,msg){$('statusPill').className=`status ${state}`;$('statusPill').textContent=title;$('message').textContent=msg}
 function getRecords(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]}}
 function setRecords(r){localStorage.setItem(KEY,JSON.stringify(r))}
-function saveRecord(){calculate();if(!currentResult)return alert('Bitte erst gültige Angaben eingeben.');const rec={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:$('dutyDate').value,onBlockDate:$('onBlockDate').value,flightRef:$('flightRef').value.trim(),reportTime:$('reportTime').value,onBlockTime:$('onBlockTime').value,reportUtcDate:$('reportUtcDate').value,reportUtcTime:$('reportUtcTime').value,onBlockUtcDate:$('onBlockUtcDate').value,onBlockUtcTime:$('onBlockUtcTime').value,positioning:$('positioning').checked,awayOver48:$('awayOver48').checked,plannedExtension:$('plannedExtension').checked,extensionMinutes:+$('extensionMinutes').value,extensionRestMode:$('extensionRestMode').value,notes:$('notes').value.trim(),...currentResult,savedAt:new Date().toISOString()};const records=getRecords();records.push(rec);records.sort((a,b)=>a.reportUtc-b.reportUtc);setRecords(records);$('saveBtn').textContent='Gespeichert ✓';setTimeout(()=>$('saveBtn').textContent='Datensatz speichern',1400);renderArchive()}
-function resetForm(){$('dutyDate').value=today();$('onBlockDate').value=today();$('flightRef').value='';$('departureIcao').value='';$('arrivalIcao').value='';$('homeBaseIcao').value='EDDN';$('reportTime').value='15:00';$('onBlockTime').value='03:00';$('reportUtcDate').value='';$('reportUtcTime').value='';$('onBlockUtcDate').value='';$('onBlockUtcTime').value='';$('sectors').value='1';$('positioning').checked=true;$('awayOver48').checked=false;$('plannedExtension').checked=false;$('notes').value='';reportInputMode='local';onBlockInputMode='local';setSyncBadge('report','local');setSyncBadge('onBlock','local');calculate()}
-function deleteRecord(id){if(confirm('Diesen Datensatz wirklich löschen?')){setRecords(getRecords().filter(r=>r.id!==id));renderArchive()}}
+function formRecord(){
+  return {id:editingId||((crypto.randomUUID&&crypto.randomUUID())||String(Date.now())),date:$('dutyDate').value,onBlockDate:$('onBlockDate').value,flightRef:$('flightRef').value.trim(),reportTime:$('reportTime').value,onBlockTime:$('onBlockTime').value,reportUtcDate:$('reportUtcDate').value,reportUtcTime:$('reportUtcTime').value,onBlockUtcDate:$('onBlockUtcDate').value,onBlockUtcTime:$('onBlockUtcTime').value,dutyEndUtcDate:$('dutyEndUtcDate').value,dutyEndUtcTime:$('dutyEndUtcTime').value,dutyEndLocalDate:$('dutyEndLocalDate').value,dutyEndLocalTime:$('dutyEndLocalTime').value,positioning:$('positioning').checked,awayOver48:$('awayOver48').checked,specialRule:$('specialRule').value,specialMinutes:+$('specialMinutes').value||0,extensionRestMode:$('extensionRestMode').value,augmentedCrew:$('augmentedCrew').checked,standbyFacility:$('standbyFacility').value,reducedRestMinutes:+$('reducedRestMinutes').value||0,notes:$('notes').value.trim(),...currentResult,savedAt:new Date().toISOString()}
+}
+function saveRecord(){
+  calculate();if(!currentResult)return alert('Bitte erst gültige Angaben eingeben.');
+  const rec=formRecord(),records=getRecords(),idx=records.findIndex(r=>r.id===rec.id);
+  if(idx>=0)records[idx]=rec;else records.push(rec);
+  records.sort((a,b)=>a.reportUtc-b.reportUtc);setRecords(records);
+  $('saveBtn').textContent=idx>=0?'Änderungen gespeichert ✓':'Gespeichert ✓';
+  setTimeout(()=>{$('saveBtn').textContent=editingId?'Änderungen speichern':'Datensatz speichern'},1400);
+  renderArchive()
+}
+function setEditing(on){$('editBanner').classList.toggle('hidden',!on);$('saveBtn').textContent=on?'Änderungen speichern':'Datensatz speichern'}
+function switchView(id){document.querySelectorAll('.tab,.view').forEach(x=>x.classList.remove('active'));document.querySelector(`.tab[data-view="${id}"]`).classList.add('active');$(id).classList.add('active')}
+function editRecord(id){
+  const r=getRecords().find(x=>x.id===id);if(!r)return;editingId=id;setEditing(true);
+  $('flightRef').value=r.flightRef||'';$('departureIcao').value=r.depCode||'';$('arrivalIcao').value=r.arrCode||'';$('homeBaseIcao').value=r.homeCode||'EDDN';$('sectors').value=r.sectors||1;
+  $('reportUtcDate').value=r.reportUtcDate||datePartsUtc(r.reportUtc).date;$('reportUtcTime').value=r.reportUtcTime||datePartsUtc(r.reportUtc).time;
+  $('onBlockUtcDate').value=r.onBlockUtcDate||datePartsUtc(r.onUtc).date;$('onBlockUtcTime').value=r.onBlockUtcTime||datePartsUtc(r.onUtc).time;
+  $('dutyDate').value=r.date||today();$('reportTime').value=r.reportTime||'';$('onBlockDate').value=r.onBlockDate||r.date||today();$('onBlockTime').value=r.onBlockTime||'';
+  $('dutyEndUtcDate').value=r.dutyEndUtcDate||datePartsUtc(r.dutyEnd).date;$('dutyEndUtcTime').value=r.dutyEndUtcTime||datePartsUtc(r.dutyEnd).time;
+  $('dutyEndLocalDate').value=r.dutyEndLocalDate||'';$('dutyEndLocalTime').value=r.dutyEndLocalTime||'';
+  $('positioning').checked=r.positioning!==false;$('awayOver48').checked=!!r.awayOver48;$('specialRule').value=r.specialRule||r.rule||'basic';$('specialMinutes').value=r.specialMinutes||0;
+  $('extensionRestMode').value=r.extensionRestMode||'post4';$('augmentedCrew').checked=!!r.augmentedCrew;$('standbyFacility').value=r.standbyFacility||'no_sleep';$('reducedRestMinutes').value=r.reducedRestMinutes||60;$('notes').value=r.notes||'';
+  reportInputMode='utc';onBlockInputMode='utc';dutyEndInputMode='utc';dutyEndManual=true;updateSpecialFields();switchView('entryView');calculate();window.scrollTo({top:0,behavior:'smooth'})
+}
+function resetForm(){
+  editingId=null;setEditing(false);$('dutyDate').value=today();$('onBlockDate').value=today();$('flightRef').value='';$('departureIcao').value='';$('arrivalIcao').value='';$('homeBaseIcao').value='EDDN';$('reportTime').value='15:00';$('onBlockTime').value='03:00';
+  ['reportUtcDate','reportUtcTime','onBlockUtcDate','onBlockUtcTime','dutyEndUtcDate','dutyEndUtcTime','dutyEndLocalDate','dutyEndLocalTime'].forEach(id=>$(id).value='');
+  $('sectors').value='1';$('positioning').checked=true;$('awayOver48').checked=false;$('specialRule').value='basic';$('specialMinutes').value=0;$('notes').value='';
+  reportInputMode='utc';onBlockInputMode='utc';dutyEndInputMode='utc';dutyEndManual=false;updateSpecialFields();calculate()
+}
+function deleteRecord(id){if(confirm('Diesen Datensatz wirklich löschen?')){if(editingId===id)resetForm();setRecords(getRecords().filter(r=>r.id!==id));renderArchive()}}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
-function renderArchive(){const month=$('monthFilter').value,rs=getRecords().filter(r=>r.date&&r.date.startsWith(month)),tb=$('recordsTable').querySelector('tbody');tb.innerHTML='';rs.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${formatDate(r.date)}</td><td><strong>${escapeHtml(r.depCode)}–${escapeHtml(r.arrCode)}</strong><br><small>${escapeHtml(r.flightRef||'')}</small></td><td>${r.reportTime}<br><small>${r.reportUtcTime||datePartsUtc(r.reportUtc).time} UTC</small></td><td>${formatDate(r.onBlockDate)} ${r.onBlockTime}<br><small>${r.onBlockUtcTime||datePartsUtc(r.onUtc).time} UTC</small></td><td>${formatDuration(r.plannedFdp)}</td><td>${formatDuration(r.limit)}</td><td>${formatDuration(r.margin)}</td><td>${formatDuration(r.minimumRest)}</td><td><button class="icon-btn" data-id="${r.id}">Löschen</button></td>`;tb.appendChild(tr)});tb.querySelectorAll('button').forEach(b=>b.onclick=()=>deleteRecord(b.dataset.id));$('emptyState').classList.toggle('hidden',rs.length>0);$('recordsTable').classList.toggle('hidden',rs.length===0);$('monthCount').textContent=rs.length;$('monthFdp').textContent=formatDuration(rs.reduce((s,r)=>s+r.plannedFdp,0))}
+function renderArchive(){
+  const month=$('monthFilter').value,rs=getRecords().filter(r=>r.date&&r.date.startsWith(month)),tb=$('recordsTable').querySelector('tbody');tb.innerHTML='';
+  rs.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${formatDate(r.date)}</td><td><strong>${escapeHtml(r.depCode)}–${escapeHtml(r.arrCode)}</strong><br><small>${escapeHtml(r.flightRef||'')}</small></td><td><strong>${r.reportUtcTime||datePartsUtc(r.reportUtc).time} UTC</strong><br><small>${r.reportTime||''} lokal</small></td><td><strong>${r.onBlockUtcTime||datePartsUtc(r.onUtc).time} UTC</strong><br><small>${formatDate(r.onBlockDate)} ${r.onBlockTime||''} lokal</small></td><td>${formatDuration(r.plannedFdp)}</td><td>${escapeHtml(ruleName(r.specialRule||r.rule||'basic'))}</td><td>${formatDuration(r.minimumRest)}</td><td class="action-cell"><button class="icon-btn edit-btn" data-id="${r.id}">Bearbeiten</button><button class="icon-btn delete-btn" data-id="${r.id}">Löschen</button></td>`;tb.appendChild(tr)});
+  tb.querySelectorAll('.edit-btn').forEach(b=>b.onclick=()=>editRecord(b.dataset.id));tb.querySelectorAll('.delete-btn').forEach(b=>b.onclick=()=>deleteRecord(b.dataset.id));
+  $('emptyState').classList.toggle('hidden',rs.length>0);$('recordsTable').classList.toggle('hidden',rs.length===0);$('monthCount').textContent=rs.length;$('monthFdp').textContent=formatDuration(rs.reduce((s,r)=>s+(r.plannedFdp||0),0))
+}
 function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-function exportCSV(){const month=$('monthFilter').value,rs=getRecords().filter(r=>r.date&&r.date.startsWith(month));if(!rs.length)return alert('Keine Datensätze in diesem Monat.');const rows=[['Datum','Flug','Start','Ziel','Home Base','Report UTC','ON-Block UTC','FDP Min','Limit Min','WOCL Reduktion Min','Duty Min','Ruhezeit Min','Frühestes Reporting UTC','Status','Notiz'],...rs.map(r=>[r.date,r.flightRef,r.depCode,r.arrCode,r.homeCode,new Date(r.reportUtc).toISOString(),new Date(r.onUtc).toISOString(),r.plannedFdp,r.limit,r.woclReduction,r.dutyMinutes,r.minimumRest,new Date(r.earliestNextReport).toISOString(),r.status,r.notes])];const csv='\ufeff'+rows.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\r\n');downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),`FTL_${month}.csv`)}
+function exportCSV(){
+  const month=$('monthFilter').value,rs=getRecords().filter(r=>r.date&&r.date.startsWith(month));if(!rs.length)return alert('Keine Datensätze in diesem Monat.');
+  const rows=[['Datum','Flug','Start','Ziel','Home Base','Report UTC','ON-Block UTC','Dienstende UTC','FDP Min','Sonderregel','Limit Min','Duty Min','Ruhezeit Min','Frühestes Reporting UTC','Status','Notiz'],...rs.map(r=>[r.date,r.flightRef,r.depCode,r.arrCode,r.homeCode,new Date(r.reportUtc).toISOString(),new Date(r.onUtc).toISOString(),new Date(r.dutyEnd).toISOString(),r.plannedFdp,ruleName(r.specialRule||r.rule||'basic'),r.limit,r.dutyMinutes,r.minimumRest,new Date(r.earliestNextReport).toISOString(),r.status,r.notes])];
+  const csv='\ufeff'+rows.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\r\n');downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),`FTL_${month}.csv`)
+}
 function pdfEscape(s){return String(s??'').replace(/[–—]/g,'-').replace(/…/g,'...').replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/[\\()]/g,m=>'\\'+m).replace(/[\r\n]+/g,' ')}
-function exportPDF(){const month=$('monthFilter').value,rs=getRecords().filter(r=>r.date&&r.date.startsWith(month));if(!rs.length)return alert('Keine Datensätze in diesem Monat.');const [y,m]=month.split('-');let lines=[`FTL Monatsübersicht ${m}/${y}`,'OM-A Ch. 7, Issue 5, Rev. 0, 08.11.2024','',`Datensätze: ${rs.length}   FDP gesamt: ${formatDuration(rs.reduce((s,r)=>s+r.plannedFdp,0))}`,''];for(const r of rs){lines.push(`${formatDate(r.date)}  ${r.depCode}-${r.arrCode}  ${r.flightRef||''}`);lines.push(`Report ${formatUtc(r.reportUtc)}   ON-Block ${formatUtc(r.onUtc)}`);lines.push(`FDP ${formatDuration(r.plannedFdp)}  Limit ${formatDuration(r.limit)}  WOCL-Red. ${formatDuration(r.woclReduction)}`);lines.push(`Duty ${formatDuration(r.dutyMinutes)}  Min. Rest ${formatDuration(r.minimumRest)}  Next report ${formatUtc(r.earliestNextReport)}`);lines.push(`Status: ${r.status}`);if(r.notes)lines.push(`Notiz: ${r.notes}`);lines.push('')}const pages=[];while(lines.length)pages.push(lines.splice(0,43));const objs=[];objs[1]='<< /Type /Catalog /Pages 2 0 R >>';const kids=[];let obj=3;pages.forEach((page,i)=>{const po=obj++,co=obj++;kids.push(`${po} 0 R`);objs[po]=`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${3+pages.length*2} 0 R >> >> /Contents ${co} 0 R >>`;let yPos=805,c='BT\n/F1 10 Tf\n';page.forEach((line,j)=>{const size=j===0&&i===0?16:10;c+=`/F1 ${size} Tf\n1 0 0 1 40 ${yPos} Tm (${pdfEscape(line)}) Tj\n`;yPos-=j===0&&i===0?26:15});c+='ET';objs[co]=`<< /Length ${c.length} >>\nstream\n${c}\nendstream`});const fo=3+pages.length*2;objs[2]=`<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pages.length} >>`;objs[fo]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';let pdf='%PDF-1.4\n',offs=[0];for(let i=1;i<=fo;i++){offs[i]=pdf.length;pdf+=`${i} 0 obj\n${objs[i]}\nendobj\n`}const xr=pdf.length;pdf+=`xref\n0 ${fo+1}\n0000000000 65535 f \n`;for(let i=1;i<=fo;i++)pdf+=`${String(offs[i]).padStart(10,'0')} 00000 n \n`;pdf+=`trailer\n<< /Size ${fo+1} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`;const bytes=new Uint8Array(pdf.length);for(let i=0;i<pdf.length;i++)bytes[i]=pdf.charCodeAt(i)&255;downloadBlob(new Blob([bytes],{type:'application/pdf'}),`FTL_Monat_${month}.pdf`)}
-function bind(){['dutyDate','reportTime'].forEach(id=>$(id).addEventListener('input',()=>{reportInputMode='local';syncReport('local');calculate()}));['reportUtcDate','reportUtcTime'].forEach(id=>$(id).addEventListener('input',()=>{reportInputMode='utc';syncReport('utc');calculate()}));['onBlockDate','onBlockTime'].forEach(id=>$(id).addEventListener('input',()=>{onBlockInputMode='local';syncOnBlock('local');calculate()}));['onBlockUtcDate','onBlockUtcTime'].forEach(id=>$(id).addEventListener('input',()=>{onBlockInputMode='utc';syncOnBlock('utc');calculate()}));$('departureIcao').addEventListener('input',()=>{syncReport(reportInputMode);calculate()});$('arrivalIcao').addEventListener('input',()=>{syncOnBlock(onBlockInputMode);calculate()});['homeBaseIcao','flightRef','sectors','positioning','awayOver48','plannedExtension','extensionMinutes','extensionRestMode','notes'].forEach(id=>$(id).addEventListener('input',calculate));$('saveBtn').onclick=saveRecord;$('resetBtn').onclick=resetForm;$('monthFilter').onchange=renderArchive;$('pdfBtn').onclick=exportPDF;$('csvBtn').onclick=exportCSV;document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab,.view').forEach(x=>x.classList.remove('active'));t.classList.add('active');$(t.dataset.view).classList.add('active');if(t.dataset.view==='archiveView')renderArchive()})}
-async function init(){bind();setSyncBadge('report','local');setSyncBadge('onBlock','local');try{const data=await fetch('airports.json').then(r=>{if(!r.ok)throw new Error('airports.json');return r.json()});airports=new Map(data.map(a=>[a.i,a]));calculate()}catch(e){showStatus('DATENBANKFEHLER','danger','airports.json konnte nicht geladen werden.')}renderArchive()}
+function exportPDF(){
+  const month=$('monthFilter').value,rs=getRecords().filter(r=>r.date&&r.date.startsWith(month));if(!rs.length)return alert('Keine Datensätze in diesem Monat.');
+  const [y,m]=month.split('-');let lines=[`FTL Monatsübersicht ${m}/${y}`,'FAI OM-A Ch. 7, Issue 5, Rev. 0, 08.11.2024','',`Datensätze: ${rs.length}   FDP gesamt: ${formatDuration(rs.reduce((s,r)=>s+(r.plannedFdp||0),0))}`,''];
+  for(const r of rs){lines.push(`${formatDate(r.date)}  ${r.depCode}-${r.arrCode}  ${r.flightRef||''}`);lines.push(`Report ${formatUtc(r.reportUtc)}   ON-Block ${formatUtc(r.onUtc)}`);lines.push(`Dienstende ${formatUtc(r.dutyEnd)}   Regel: ${ruleName(r.specialRule||r.rule||'basic')}`);lines.push(`FDP ${formatDuration(r.plannedFdp)}  Limit ${formatDuration(r.limit)}  Duty ${formatDuration(r.dutyMinutes)}`);lines.push(`Min. Rest ${formatDuration(r.minimumRest)}  Next report ${formatUtc(r.earliestNextReport)}`);lines.push(`Status: ${r.status}`);if(r.notes)lines.push(`Notiz: ${r.notes}`);lines.push('')}
+  const pages=[];while(lines.length)pages.push(lines.splice(0,41));const objs=[];objs[1]='<< /Type /Catalog /Pages 2 0 R >>';const kids=[];let obj=3;
+  pages.forEach((page,i)=>{const po=obj++,co=obj++;kids.push(`${po} 0 R`);objs[po]=`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${3+pages.length*2} 0 R >> >> /Contents ${co} 0 R >>`;let yPos=805,c='BT\n/F1 10 Tf\n';page.forEach((line,j)=>{const size=j===0&&i===0?16:10;c+=`/F1 ${size} Tf\n1 0 0 1 40 ${yPos} Tm (${pdfEscape(line)}) Tj\n`;yPos-=j===0&&i===0?26:15});c+='ET';objs[co]=`<< /Length ${c.length} >>\nstream\n${c}\nendstream`});
+  const fo=3+pages.length*2;objs[2]=`<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pages.length} >>`;objs[fo]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';let pdf='%PDF-1.4\n',offs=[0];for(let i=1;i<=fo;i++){offs[i]=pdf.length;pdf+=`${i} 0 obj\n${objs[i]}\nendobj\n`}const xr=pdf.length;pdf+=`xref\n0 ${fo+1}\n0000000000 65535 f \n`;for(let i=1;i<=fo;i++)pdf+=`${String(offs[i]).padStart(10,'0')} 00000 n \n`;pdf+=`trailer\n<< /Size ${fo+1} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`;const bytes=new Uint8Array(pdf.length);for(let i=0;i<pdf.length;i++)bytes[i]=pdf.charCodeAt(i)&255;downloadBlob(new Blob([bytes],{type:'application/pdf'}),`FTL_Monat_${month}.pdf`)
+}
+function bind(){
+  ['reportUtcDate','reportUtcTime'].forEach(id=>$(id).addEventListener('input',()=>{reportInputMode='utc';syncReport('utc');calculate()}));
+  ['dutyDate','reportTime'].forEach(id=>$(id).addEventListener('input',()=>{reportInputMode='local';syncReport('local');calculate()}));
+  ['onBlockUtcDate','onBlockUtcTime'].forEach(id=>$(id).addEventListener('input',()=>{onBlockInputMode='utc';syncOnBlock('utc');if(!dutyEndManual)setAutoDutyEnd();calculate()}));
+  ['onBlockDate','onBlockTime'].forEach(id=>$(id).addEventListener('input',()=>{onBlockInputMode='local';syncOnBlock('local');if(!dutyEndManual)setAutoDutyEnd();calculate()}));
+  ['dutyEndUtcDate','dutyEndUtcTime'].forEach(id=>$(id).addEventListener('input',()=>{dutyEndManual=true;dutyEndInputMode='utc';syncDutyEnd('utc');calculate()}));
+  ['dutyEndLocalDate','dutyEndLocalTime'].forEach(id=>$(id).addEventListener('input',()=>{dutyEndManual=true;dutyEndInputMode='local';syncDutyEnd('local');calculate()}));
+  $('autoDutyEndBtn').onclick=()=>{setAutoDutyEnd();calculate()};
+  $('departureIcao').addEventListener('input',()=>{syncReport(reportInputMode);calculate()});$('arrivalIcao').addEventListener('input',()=>{syncOnBlock(onBlockInputMode);syncDutyEnd(dutyEndInputMode);calculate()});
+  $('specialRule').addEventListener('change',()=>{updateSpecialFields();calculate()});
+  ['homeBaseIcao','flightRef','sectors','positioning','awayOver48','specialMinutes','extensionRestMode','augmentedCrew','standbyFacility','reducedRestMinutes','notes'].forEach(id=>$(id).addEventListener('input',calculate));
+  $('saveBtn').onclick=saveRecord;$('resetBtn').onclick=resetForm;$('cancelEditBtn').onclick=resetForm;$('monthFilter').onchange=renderArchive;$('pdfBtn').onclick=exportPDF;$('csvBtn').onclick=exportCSV;
+  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{switchView(t.dataset.view);if(t.dataset.view==='archiveView')renderArchive()})
+}
+async function init(){
+  bind();updateSpecialFields();setSyncBadge('report','utc');setSyncBadge('onBlock','utc');
+  try{const data=await fetch('airports.json').then(r=>{if(!r.ok)throw new Error('airports.json');return r.json()});airports=new Map(data.map(a=>[a.i,a]));calculate()}
+  catch(e){showStatus('DATENBANKFEHLER','danger','airports.json konnte nicht geladen werden.')}
+  renderArchive()
+}
 let deferredPrompt;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').hidden=false});$('installBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('installBtn').hidden=true};if('serviceWorker'in navigator)navigator.serviceWorker.register('service-worker.js');init();

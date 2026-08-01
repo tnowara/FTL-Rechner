@@ -1,7 +1,7 @@
 {
-  "name": "EASA FTL Logbook",
+  "name": "FAI FTL Logbook",
   "short_name": "FTL Logbook",
-  "description": "FTL-Planer nach FAI OM-A Kapitel 7 mit Ruhezeitberechnung",
+  "description": "Offline FTL- und Ruhezeitrechner nach FAI OM-A Ch. 7 mit bearbeitbarem Archiv",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#071521",
