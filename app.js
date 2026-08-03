@@ -287,7 +287,7 @@ function renderDashboard(){
   });
 }
 function exportBackup(){
-  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.3',exportedAt:new Date().toISOString(),records:getRecords()};
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.4',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
 }
@@ -619,7 +619,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.3';
+const CURRENT_APP_VERSION='1.9.4';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);
@@ -694,6 +694,22 @@ async function applyAppUpdate(){
   }
 }
 
+
+function showOfflineReadyMessage(){
+  if(!('serviceWorker' in navigator))return;
+  navigator.serviceWorker.ready.then(async registration=>{
+    try{
+      const cacheNames=await caches.keys();
+      const ready=cacheNames.some(name=>name==='ftl-logbook-v1.9.4');
+      if(ready&&!navigator.onLine){
+        showUpdateStatus('Offline-Modus aktiv. Die App wird aus dem Gerätespeicher geladen.','success',false);
+      }
+    }catch{}
+  });
+}
+window.addEventListener('online',()=>hideUpdateStatus());
+window.addEventListener('offline',()=>showUpdateStatus('Offline-Modus aktiv. Gespeicherte Funktionen bleiben verfügbar.','success',false));
+
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();deferredPrompt=e;$('installBtn').hidden=false
 });
@@ -725,3 +741,4 @@ if('serviceWorker'in navigator){
   }).catch(()=>showUpdateStatus('Service Worker konnte nicht registriert werden.','error',false));
 }
 init();
+showOfflineReadyMessage();

@@ -1,32 +1,27 @@
-FAI FTL Logbook PWA 1.9.3
+FAI FTL Logbook PWA 1.9.4
 
-Neu:
-- Berechnung der Local Days Free im ausgewählten Kalendermonat.
-- Sollwert: mindestens 7 Local Days Free pro Kalendermonat.
-- Berechnung der Local Days Free im ausgewählten Kalenderjahr.
-- Sollwert: mindestens 96 Local Days Free pro Kalenderjahr.
-- Fortschrittsanzeigen und Warnfarben für beide Werte.
-- Gezählt werden eindeutige Kalendertage, die ausdrücklich als
-  „Local Day Free / OFF“ gespeichert sind.
-- Der bisherige Hinweis, die Werte seien nicht berechenbar, wurde entfernt.
-- Der ausgewählte Statistik-Stichtag bestimmt den ausgewerteten Monat und das Jahr.
-- Doppelte OFF-Einträge am selben Datum zählen nur einmal.
+Fehlerbehebung Offline-Modus:
+- Alle Cache-Adressen werden jetzt aus dem tatsächlichen GitHub-Pages-Scope
+  gebildet. Dadurch funktionieren Repository-Unterordner zuverlässig.
+- index.html wird mit vollständigem Scope-Pfad als Offline-Fallback verwendet.
+- Die große airports.json und app-version.json werden einzeln gecacht.
+  Ein einzelner Downloadfehler verhindert nicht mehr die Installation des
+  gesamten Service Workers.
+- Die App-Shell wird zwingend vorinstalliert:
+  index.html, app.js, styles.css, Manifest und Icon.
+- Navigation verwendet online „network first“ und offline automatisch den Cache.
+- Statische Dateien verwenden „cache first“.
+- Der neue Service Worker übernimmt sofort mit skipWaiting und clients.claim.
+- Eine Statusmeldung zeigt an, wenn die App offline arbeitet.
 
-Wichtige Abgrenzung:
-Die App zählt deklarierte OFF-Tage. Ob ein Local Day Free tatsächlich zwei lokale
-Nächte umfasst, kann ohne Beginn- und Endzeit des freien Zeitraums nicht automatisch
-verifiziert werden. Urlaub und Krankheit werden nicht automatisch als OFF gezählt.
+Erster Offline-Test:
+1. Version 1.9.4 vollständig bei GitHub hochladen.
+2. App online öffnen.
+3. Auf „Update prüfen“ und anschließend „Update installieren“ tippen.
+4. Die App danach einmal online vollständig öffnen und etwa 10 Sekunden warten.
+5. App schließen.
+6. Flugmodus aktivieren und die installierte App erneut öffnen.
 
-Grundlage:
-FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0, 08.11.2024:
-mindestens 7 Local Days Free pro Kalendermonat und mindestens 96 pro Kalenderjahr.
-
-Update:
-- app-version.json: 1.9.3
-- CURRENT_APP_VERSION: 1.9.3
-- Service-Worker-Cache: ftl-logbook-v1.9.3
-
-GitHub Pages:
-Alle Dateien dieser Version hochladen und vorhandene Dateien ersetzen.
-app-version.json und airports.json müssen im selben Ordner wie index.html liegen.
-Danach in der App „Update prüfen“ auswählen.
+Wichtig:
+airports.json und app-version.json müssen im gleichen Verzeichnis wie index.html
+liegen. Bereits gespeicherte Datensätze bleiben erhalten.

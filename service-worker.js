@@ -1,53 +1,100 @@
-const CACHE="ftl-logbook-v1.9.3";
-const ASSETS=["./","index.html","styles.css","app.js","app-version.json","airports.json","manifest.webmanifest","icon.svg"];
+const CACHE = "ftl-logbook-v1.9.4";
+const SCOPE = self.registration.scope;
+const url = path => new URL(path, SCOPE).toString();
 
-self.addEventListener("install",event=>{
-  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));
-});
+const CRITICAL_ASSETS = [
+  url("./"),
+  url("index.html"),
+  url("styles.css"),
+  url("app.js"),
+  url("manifest.webmanifest"),
+  url("icon.svg")
+];
 
-self.addEventListener("activate",event=>{
-  event.waitUntil(
-    Promise.all([
-      self.clients.claim(),
-      caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))
-    ])
-  );
-});
+const DATA_ASSETS = [
+  url("airports.json"),
+  url("app-version.json")
+];
 
-self.addEventListener("message",event=>{
-  if(event.data&&event.data.type==="SKIP_WAITING")self.skipWaiting();
-});
+self.addEventListener("install", event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
 
-self.addEventListener("fetch",event=>{
-  const request=event.request;
-  const url=new URL(request.url);
+    // Critical shell must be present for the app to start offline.
+    await cache.addAll(CRITICAL_ASSETS);
 
-  if(url.pathname.endsWith("/app-version.json")){
-    event.respondWith(fetch(request,{cache:"no-store"}).catch(()=>caches.match("app-version.json")));
-    return;
-  }
-
-  if(request.mode==="navigate"){
-    event.respondWith(
-      fetch(request).then(response=>{
-        const copy=response.clone();
-        caches.open(CACHE).then(cache=>cache.put("index.html",copy));
-        return response;
-      }).catch(()=>caches.match("index.html"))
+    // Cache large/optional data files independently so one failed request
+    // does not invalidate the complete service-worker installation.
+    await Promise.allSettled(
+      DATA_ASSETS.map(async asset => {
+        const response = await fetch(asset, { cache: "reload" });
+        if (!response.ok) throw new Error(`Could not cache ${asset}`);
+        await cache.put(asset, response);
+      })
     );
+
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener("message", event => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
+});
+
+async function networkFirst(request, fallbackUrl) {
+  const cache = await caches.open(CACHE);
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch {
+    return (await cache.match(request)) || (fallbackUrl ? await cache.match(fallbackUrl) : undefined);
+  }
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch {
+    return new Response("Offline resource unavailable", {
+      status: 503,
+      headers: { "Content-Type": "text/plain; charset=utf-8" }
+    });
+  }
+}
+
+self.addEventListener("fetch", event => {
+  const request = event.request;
+  if (request.method !== "GET") return;
+
+  const requestUrl = new URL(request.url);
+
+  // Only manage files inside this GitHub Pages app scope.
+  if (!requestUrl.href.startsWith(SCOPE)) return;
+
+  if (requestUrl.pathname.endsWith("/app-version.json")) {
+    event.respondWith(networkFirst(request, url("app-version.json")));
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then(cached=>{
-      const network=fetch(request).then(response=>{
-        if(response&&response.ok){
-          const copy=response.clone();
-          caches.open(CACHE).then(cache=>cache.put(request,copy));
-        }
-        return response;
-      }).catch(()=>cached);
-      return cached||network;
-    })
-  );
+  if (request.mode === "navigate") {
+    event.respondWith(networkFirst(request, url("index.html")));
+    return;
+  }
+
+  event.respondWith(cacheFirst(request));
 });
