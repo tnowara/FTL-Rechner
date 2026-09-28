@@ -139,6 +139,7 @@
       <span><i class="legend-dot sick-dot"></i>Krank</span>
       <span><i class="legend-dot standby-dot"></i>Standby</span>
       <span><i class="legend-dot proceeding-dot"></i>Proceeding</span>
+      <span><i class="legend-dot layover-dot"></i>Layover</span>
       <span><i class="legend-dot other-dot"></i>Sonstiges</span>
     </div>
   </section>
@@ -180,6 +181,7 @@
           <option value="sick">Krankheit</option>
           <option value="standby">Standby ohne Duty-Datensatz</option>
           <option value="proceeding">Proceeding / Positioning</option>
+          <option value="layover">Layover</option>
           <option value="training">Training / Office Duty</option>
           <option value="other">Sonstiges</option>
         </select>
@@ -359,6 +361,7 @@
       <div class="metric"><span>Reserve nach Planung</span><strong id="plannedMargin">–</strong></div>
       <div class="metric"><span>WOCL-Reduzierung</span><strong id="woclReduction">–</strong></div>
       <div class="metric"><span>Abwesenheit Home-TZ</span><strong id="homeTzAbsence">–</strong></div>
+      <div class="metric"><span>Vorheriger Dienst / Ruhezeit</span><strong id="previousDutyCheck">–</strong></div>
       <div class="metric"><span>Dienstzeit</span><strong id="dutyDuration">–</strong></div>
       <div class="metric"><span>Mindest-Ruhezeit</span><strong id="minimumRest">–</strong></div>
       <div class="metric"><span>Frühestes nächstes Reporting</span><strong id="earliestNextReport">–</strong></div>
@@ -499,7 +502,7 @@
   <p>Berechnung nach FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0 vom 08.11.2024. Bei genehmigungs-, ereignis- oder nachweispflichtigen Sonderregeln zeigt die App zusätzliche Warnhinweise; sie ersetzt keine Freigabe durch Crew Control, Commander oder LBA.</p>
 </section>
 </main>
-<footer>Version 1.9.5 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
+<footer>Version 1.9.6 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
 <script src="app.js"></script>
 </body>
 </html>

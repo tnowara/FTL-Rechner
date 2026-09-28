@@ -1,7 +1,7 @@
 {
   "name": "FAI FTL Logbook",
   "short_name": "FTL Logbook",
-  "description": "Offline FTL-App mit Split Duty, Proceeding, UTC/LT-Kalender und automatischer Home-TZ-Abwesenheit",
+  "description": "Offline FTL-App mit Layover-Kalender und automatischer Prüfung des nächsten Reportings",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#071521",

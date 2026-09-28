@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.5",
+  "appVersion": "1.9.6",
   "lastUpdated": "2026-09-28",
-  "notes": "Split Duty korrigiert, Proceeding im Kalender, UTC/LT-Mehrtagdarstellung, automatische Home-TZ-Abwesenheit"
+  "notes": "Layover im Kalender und automatische Kollisions-/Mindestruheprüfung gegen den vorherigen Dienst"
 }

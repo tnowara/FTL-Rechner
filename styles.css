@@ -187,3 +187,8 @@
 .auto-status-card span{font-size:12px;color:var(--muted)}
 .auto-status-card strong{font-size:14px}
 .auto-status-card small{color:var(--muted);line-height:1.35}
+
+/* Version 1.9.6 */
+.layover-dot{background:#b49cff}
+.calendar-item.layover{background:rgba(180,156,255,.16);border-color:rgba(180,156,255,.30)}
+.recent-record.recent-layover{border-left:3px solid #b49cff}

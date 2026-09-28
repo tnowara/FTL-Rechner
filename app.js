@@ -150,6 +150,36 @@ function automaticHomeTzAbsence(reportUtc,dep,home){
   };
 }
 
+
+function previousDutyConflict(reportUtc){
+  const previous=getRecords()
+    .filter(isDutyRecord)
+    .filter(r=>r.id!==editingId&&Number.isFinite(r.reportUtc)&&r.reportUtc<reportUtc)
+    .sort((a,b)=>b.reportUtc-a.reportUtc)[0];
+
+  if(!previous)return {previous:null,overlap:false,restConflict:false,text:'Kein vorheriger Dienst gespeichert'};
+
+  const previousEnd=Number.isFinite(previous.dutyEnd)?previous.dutyEnd:
+    (Number.isFinite(previous.onUtc)?previous.onUtc:null);
+  const earliest=Number.isFinite(previous.earliestNextReport)?previous.earliestNextReport:null;
+
+  const overlap=Number.isFinite(previousEnd)&&reportUtc<previousEnd;
+  const restConflict=Number.isFinite(earliest)&&reportUtc<earliest;
+  let text='OK';
+
+  if(overlap){
+    text=`Überschneidung mit Dienst vom ${formatDate(previous.date)}`;
+  }else if(restConflict){
+    text=`Ruhezeit unterschritten – frühestens ${formatUtc(earliest)}`;
+  }else if(earliest){
+    const reserve=Math.round((reportUtc-earliest)/60000);
+    text=`OK · ${formatDuration(reserve)} Reserve`;
+  }else if(previousEnd){
+    text=`Kein Ruhezeitwert gespeichert`;
+  }
+  return {previous,previousEnd,earliest,overlap,restConflict,text};
+}
+
 function calculate(){
   const depCode=$('departureIcao').value.trim().toUpperCase(),arrCode=$('arrivalIcao').value.trim().toUpperCase(),homeCode=$('homeBaseIcao').value.trim().toUpperCase();
   $('departureIcao').value=depCode;$('arrivalIcao').value=arrCode;$('homeBaseIcao').value=homeCode;
@@ -163,6 +193,7 @@ function calculate(){
   if(!Number.isFinite(dutyEnd)){clearResult();return}
 
   const plannedFdp=Math.round((onUtc-reportUtc)/60000),sectors=+$('sectors').value,rule=$('specialRule').value,specialMin=+$('specialMinutes').value||0;
+  const previousCheck=previousDutyConflict(reportUtc);
   const year=new Date(reportUtc).getUTCFullYear(),homeOff=standardOffset(home.t,year),depOff=standardOffset(dep.t,year),arrOff=standardOffset(arr.t,year);
   const absence=automaticHomeTzAbsence(reportUtc,dep,home);
   $('awayOver48').checked=absence.known&&absence.over48;
@@ -225,12 +256,15 @@ function calculate(){
   $('plannedMargin').textContent=formatDuration(margin);
   $('woclReduction').textContent=`${formatDuration(wocl.reduction)} (${woclTz})`;
   $('homeTzAbsence').textContent=absence.known?(absence.minutes?formatDuration(absence.minutes):'0:00 h'):'nicht bestimmbar';
+  $('previousDutyCheck').textContent=previousCheck.text;
   $('dutyDuration').textContent=formatDuration(dutyMinutes);
   $('minimumRest').textContent=formatDuration(minimumRest);
   $('earliestNextReport').textContent=`${formatUtc(earliest)} / ${localClock(earliest,arr.t)}`;
 
   let state='ok',title='RECHNERISCH INNERHALB';
   if(plannedFdp<0||dutyEnd<onUtc){state='danger';title='ZEITEN PRÜFEN';warnings.unshift('ON-Block oder Dienstende liegt zeitlich vor dem zugehörigen vorherigen Zeitpunkt.')}
+  else if(previousCheck.overlap){state='danger';title='DIENSTE ÜBERSCHNEIDEN SICH';warnings.unshift(`Das neue Reporting ${formatUtc(reportUtc)} liegt vor dem Ende des vorherigen Dienstes ${formatUtc(previousCheck.previousEnd)}.`)}
+  else if(previousCheck.restConflict){state='danger';title='MINDESTRUHE UNTERSCHRITTEN';warnings.unshift(`Das neue Reporting ${formatUtc(reportUtc)} liegt vor dem frühesten zulässigen Reporting ${formatUtc(previousCheck.earliest)} aus dem vorherigen Dienst.`)}
   else if(!valid){state='danger';title='SONDERREGEL UNZULÄSSIG'}
   else if(margin<0){state='danger';title='FDP-LIMIT ÜBERSCHRITTEN';warnings.unshift(`Überschreitung um ${formatDuration(-margin)}.`)}
   else if(dutyMinutes>dutyLimit){state='danger';title='DUTY-LIMIT ÜBERSCHRITTEN';warnings.unshift(`Duty ${formatDuration(dutyMinutes)} überschreitet das für diese Auswahl angesetzte Limit ${formatDuration(dutyLimit)}.`)}
@@ -239,9 +273,9 @@ function calculate(){
   if(rule==='reduced_rest')warnings.push('Reduced Rest darf nur mit schriftlicher LBA-Genehmigung angewandt werden.');
   const msg=`FDP ${formatDuration(effectiveFdp)}, Limit ${formatDuration(limit)}, Duty ${formatDuration(dutyMinutes)}, Mindestruhe ${formatDuration(minimumRest)}.`+(warnings.length?' '+warnings.join(' '):'');
   showStatus(title,state,msg);
-  currentResult={depCode,arrCode,homeCode,depName:dep.n,arrName:arr.n,depTz:dep.t,arrTz:arr.t,homeTz:home.t,reportUtc,onUtc,plannedFdp:effectiveFdp,sectors,rule,specialMinutes:specialMin,limit,normalFdpLimit:normalLimit,margin,latestUtc,woclMinutes:wocl.minutes,woclReduction:wocl.reduction,woclTz,dutyEnd,dutyMinutes,minimumRest,earliestNextReport:earliest,startEndTimeZoneDiff:startEndDiff,homeTzAbsenceMinutes:absence.minutes,homeTzAbsenceKnown:absence.known,status:title,statusClass:state};
+  currentResult={depCode,arrCode,homeCode,depName:dep.n,arrName:arr.n,depTz:dep.t,arrTz:arr.t,homeTz:home.t,reportUtc,onUtc,plannedFdp:effectiveFdp,sectors,rule,specialMinutes:specialMin,limit,normalFdpLimit:normalLimit,margin,latestUtc,woclMinutes:wocl.minutes,woclReduction:wocl.reduction,woclTz,dutyEnd,dutyMinutes,minimumRest,earliestNextReport:earliest,startEndTimeZoneDiff:startEndDiff,homeTzAbsenceMinutes:absence.minutes,homeTzAbsenceKnown:absence.known,previousDutyId:previousCheck.previous?.id||null,previousDutyConflict:previousCheck.overlap||previousCheck.restConflict,status:title,statusClass:state};
 }
-function clearResult(){currentResult=null;['plannedFdpValue','appliedRule','baseLimit','latestEnd','plannedMargin','woclReduction','homeTzAbsence','dutyDuration','minimumRest','earliestNextReport'].forEach(id=>$(id).textContent='–')}
+function clearResult(){currentResult=null;['plannedFdpValue','appliedRule','baseLimit','latestEnd','plannedMargin','woclReduction','homeTzAbsence','previousDutyCheck','dutyDuration','minimumRest','earliestNextReport'].forEach(id=>$(id).textContent='–')}
 function showStatus(title,state,msg){$('statusPill').className=`status ${state}`;$('statusPill').textContent=title;$('message').textContent=msg}
 function getRecords(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]}}
 function setRecords(r){localStorage.setItem(KEY,JSON.stringify(r))}
@@ -347,7 +381,7 @@ function renderDashboard(){
   });
 }
 function exportBackup(){
-  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.5',exportedAt:new Date().toISOString(),records:getRecords()};
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.6',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
 }
@@ -356,10 +390,10 @@ function exportBackup(){
 function isDutyRecord(r){return !r.entryType||r.entryType==='duty'}
 function isCalendarRecord(r){return !!r.entryType&&r.entryType!=='duty'}
 function calendarTypeName(type){
-  return ({off:'OFF',vacation:'Urlaub',sick:'Krank',standby:'Standby',proceeding:'Proceeding',training:'Training',other:'Sonstiges'})[type]||type
+  return ({off:'OFF',vacation:'Urlaub',sick:'Krank',standby:'Standby',proceeding:'Proceeding',layover:'Layover',training:'Training',other:'Sonstiges'})[type]||type
 }
 function calendarTypeClass(type){
-  return ({off:'off',vacation:'vacation',sick:'sick',standby:'standby',proceeding:'proceeding',training:'other',other:'other'})[type]||'other'
+  return ({off:'off',vacation:'vacation',sick:'sick',standby:'standby',proceeding:'proceeding',layover:'layover',training:'other',other:'other'})[type]||'other'
 }
 function monthShift(month,delta){
   const [y,m]=month.split('-').map(Number);
@@ -716,7 +750,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.5';
+const CURRENT_APP_VERSION='1.9.6';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);
