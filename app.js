@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id),KEY='ftl-logbook-records-v4';
 let currentResult=null,airports=new Map(),syncing=false;
-let calendarEditingId=null,selectedCalendarDates=new Set();
+let calendarEditingId=null,selectedCalendarDates=new Set(),calendarTimeMode='utc';
 let reportInputMode='utc',onBlockInputMode='utc',dutyEndInputMode='utc',dutyEndManual=false,editingId=null;
 
 const pad=n=>String(n).padStart(2,'0');
@@ -102,6 +102,54 @@ function updateSpecialFields(){
   $('specialRuleNote').textContent=note;
 }
 
+
+function tzBandDiff(tzA,tzB,year){
+  return Math.abs(standardOffset(tzA,year)-standardOffset(tzB,year));
+}
+function automaticHomeTzAbsence(reportUtc,dep,home){
+  const year=new Date(reportUtc).getUTCFullYear();
+  const currentDiff=tzBandDiff(dep.t,home.t,year);
+  if(currentDiff<=3)return {known:true,over48:false,minutes:0,text:'In Home-Base-Zeitzonenband',since:null};
+
+  const duties=getRecords()
+    .filter(isDutyRecord)
+    .filter(r=>Number.isFinite(r.reportUtc)&&r.reportUtc<reportUtc&&r.depTz&&r.arrTz)
+    .sort((a,b)=>a.reportUtc-b.reportUtc);
+
+  let leftAt=null;
+  let lastState='unknown';
+  for(const r of duties){
+    const y=new Date(r.reportUtc).getUTCFullYear();
+    const depHome=tzBandDiff(r.depTz,home.t,y)<=3;
+    const arrHome=tzBandDiff(r.arrTz,home.t,y)<=3;
+    if(arrHome){
+      leftAt=null;
+      lastState='home';
+    }else if(depHome&&!arrHome){
+      leftAt=Number.isFinite(r.onUtc)?r.onUtc:r.reportUtc;
+      lastState='away';
+    }else if(!arrHome&&lastState==='home'&&!leftAt){
+      leftAt=r.reportUtc;
+      lastState='away';
+    }
+  }
+
+  if(!leftAt){
+    const currentDepartsHome=currentDiff<=3;
+    if(currentDepartsHome)return {known:true,over48:false,minutes:0,text:'In Home-Base-Zeitzonenband',since:null};
+    return {known:false,over48:false,minutes:null,text:'Nicht sicher bestimmbar',since:null};
+  }
+
+  const minutes=Math.max(0,Math.round((reportUtc-leftAt)/60000));
+  return {
+    known:true,
+    over48:minutes>=2880,
+    minutes,
+    since:leftAt,
+    text:`${formatDuration(minutes)} außerhalb Home-TZ-Band`
+  };
+}
+
 function calculate(){
   const depCode=$('departureIcao').value.trim().toUpperCase(),arrCode=$('arrivalIcao').value.trim().toUpperCase(),homeCode=$('homeBaseIcao').value.trim().toUpperCase();
   $('departureIcao').value=depCode;$('arrivalIcao').value=arrCode;$('homeBaseIcao').value=homeCode;
@@ -116,7 +164,13 @@ function calculate(){
 
   const plannedFdp=Math.round((onUtc-reportUtc)/60000),sectors=+$('sectors').value,rule=$('specialRule').value,specialMin=+$('specialMinutes').value||0;
   const year=new Date(reportUtc).getUTCFullYear(),homeOff=standardOffset(home.t,year),depOff=standardOffset(dep.t,year),arrOff=standardOffset(arr.t,year);
-  const woclTz=(Math.abs(homeOff-depOff)<=3||!$('awayOver48').checked)?home.t:dep.t;
+  const absence=automaticHomeTzAbsence(reportUtc,dep,home);
+  $('awayOver48').checked=absence.known&&absence.over48;
+  $('awayStatus').textContent=absence.text;
+  $('awayStatusHelp').textContent=absence.known
+    ? (absence.over48?'Mehr als 48 h außerhalb des Home-Base-Zeitzonenbands: WOCL wird lokal bestimmt.':'WOCL bleibt auf Home-Base-Zeit bezogen.')
+    : 'Historie reicht für eine sichere automatische Bestimmung nicht aus; WOCL bleibt vorsorglich auf Home-Base-Zeit.';
+  const woclTz=(Math.abs(homeOff-depOff)<=3||!absence.over48)?home.t:dep.t;
   const wocl=woclData(reportUtc,onUtc,woclTz);
   const normalLimit=baseFdpBySectors(sectors)-wocl.reduction;
   let limit=normalLimit,dutyLimit=840,valid=true,warnings=[],restAdd=0,standbyDuty=0,postPositioning=0;
@@ -130,7 +184,12 @@ function calculate(){
     restAdd=$('extensionRestMode').value==='post4'?240:120;
   }
   if(rule==='split2'){if(specialMin<120){valid=false;warnings.push('Der Break muss mindestens zwei Stunden dauern.')}dutyLimit=840}
-  if(rule==='split3'){if(specialMin<180){valid=false;warnings.push('Der Break muss mindestens drei Stunden dauern.')}dutyLimit=1080;warnings.push('Zusätzlich sind max. 10 Stunden Pilotieren und max. zwei Landungen nach dem Break einzuhalten.')}
+  if(rule==='split3'){
+    if(specialMin<180){valid=false;warnings.push('Der Break muss mindestens drei Stunden dauern.')}
+    limit=1080;
+    dutyLimit=1080;
+    warnings.push('Split Duty ≥3 h: zusammenhängende Dienstzeit bis 18:00 h. Wenn die normale tägliche FDP überschritten wird: max. 10 h Pilotieren, max. zwei Landungen nach dem Break und die 7-Tage-Beschränkungen nach OM-A 7.4.9.2 beachten.');
+  }
   if(rule==='heavy_ambulance'){limit=1080;dutyLimit=1080;if(sectors>3){valid=false;warnings.push('Heavy Crew Ambulance ist auf maximal drei Sektoren begrenzt.')}warnings.push('Gleicher Duty-Startort und höchstens ein Escort Passenger erforderlich.')}
   if(rule==='heavy_pax_bd700'){limit=840;dutyLimit=840;warnings.push('Diese Genehmigung gilt ausschließlich für BD700 Passenger/Cargo.')}
   if(rule==='commander'){
@@ -165,6 +224,7 @@ function calculate(){
   $('latestEnd').textContent=`${formatUtc(latestUtc)} / ${localClock(latestUtc,arr.t)}`;
   $('plannedMargin').textContent=formatDuration(margin);
   $('woclReduction').textContent=`${formatDuration(wocl.reduction)} (${woclTz})`;
+  $('homeTzAbsence').textContent=absence.known?(absence.minutes?formatDuration(absence.minutes):'0:00 h'):'nicht bestimmbar';
   $('dutyDuration').textContent=formatDuration(dutyMinutes);
   $('minimumRest').textContent=formatDuration(minimumRest);
   $('earliestNextReport').textContent=`${formatUtc(earliest)} / ${localClock(earliest,arr.t)}`;
@@ -179,9 +239,9 @@ function calculate(){
   if(rule==='reduced_rest')warnings.push('Reduced Rest darf nur mit schriftlicher LBA-Genehmigung angewandt werden.');
   const msg=`FDP ${formatDuration(effectiveFdp)}, Limit ${formatDuration(limit)}, Duty ${formatDuration(dutyMinutes)}, Mindestruhe ${formatDuration(minimumRest)}.`+(warnings.length?' '+warnings.join(' '):'');
   showStatus(title,state,msg);
-  currentResult={depCode,arrCode,homeCode,depName:dep.n,arrName:arr.n,depTz:dep.t,arrTz:arr.t,homeTz:home.t,reportUtc,onUtc,plannedFdp:effectiveFdp,sectors,rule,specialMinutes:specialMin,limit,margin,latestUtc,woclMinutes:wocl.minutes,woclReduction:wocl.reduction,woclTz,dutyEnd,dutyMinutes,minimumRest,earliestNextReport:earliest,startEndTimeZoneDiff:startEndDiff,status:title,statusClass:state};
+  currentResult={depCode,arrCode,homeCode,depName:dep.n,arrName:arr.n,depTz:dep.t,arrTz:arr.t,homeTz:home.t,reportUtc,onUtc,plannedFdp:effectiveFdp,sectors,rule,specialMinutes:specialMin,limit,normalFdpLimit:normalLimit,margin,latestUtc,woclMinutes:wocl.minutes,woclReduction:wocl.reduction,woclTz,dutyEnd,dutyMinutes,minimumRest,earliestNextReport:earliest,startEndTimeZoneDiff:startEndDiff,homeTzAbsenceMinutes:absence.minutes,homeTzAbsenceKnown:absence.known,status:title,statusClass:state};
 }
-function clearResult(){currentResult=null;['plannedFdpValue','appliedRule','baseLimit','latestEnd','plannedMargin','woclReduction','dutyDuration','minimumRest','earliestNextReport'].forEach(id=>$(id).textContent='–')}
+function clearResult(){currentResult=null;['plannedFdpValue','appliedRule','baseLimit','latestEnd','plannedMargin','woclReduction','homeTzAbsence','dutyDuration','minimumRest','earliestNextReport'].forEach(id=>$(id).textContent='–')}
 function showStatus(title,state,msg){$('statusPill').className=`status ${state}`;$('statusPill').textContent=title;$('message').textContent=msg}
 function getRecords(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]}}
 function setRecords(r){localStorage.setItem(KEY,JSON.stringify(r))}
@@ -287,7 +347,7 @@ function renderDashboard(){
   });
 }
 function exportBackup(){
-  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.4',exportedAt:new Date().toISOString(),records:getRecords()};
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.5',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
 }
@@ -296,10 +356,10 @@ function exportBackup(){
 function isDutyRecord(r){return !r.entryType||r.entryType==='duty'}
 function isCalendarRecord(r){return !!r.entryType&&r.entryType!=='duty'}
 function calendarTypeName(type){
-  return ({off:'OFF',vacation:'Urlaub',sick:'Krank',standby:'Standby',training:'Training',other:'Sonstiges'})[type]||type
+  return ({off:'OFF',vacation:'Urlaub',sick:'Krank',standby:'Standby',proceeding:'Proceeding',training:'Training',other:'Sonstiges'})[type]||type
 }
 function calendarTypeClass(type){
-  return ({off:'off',vacation:'vacation',sick:'sick',standby:'standby',training:'other',other:'other'})[type]||'other'
+  return ({off:'off',vacation:'vacation',sick:'sick',standby:'standby',proceeding:'proceeding',training:'other',other:'other'})[type]||'other'
 }
 function monthShift(month,delta){
   const [y,m]=month.split('-').map(Number);
@@ -326,7 +386,7 @@ function resetCalendarForm(date=today()){
 }
 function updateCalendarDurationVisibility(){
   const type=$('calendarEntryType').value;
-  $('calendarDurationWrap').classList.toggle('hidden',!['standby','training','other'].includes(type));
+  $('calendarDurationWrap').classList.toggle('hidden',!['standby','proceeding','training','other'].includes(type));
 }
 
 function updateCalendarSelectionMode(){
@@ -358,7 +418,7 @@ function saveCalendarEntry(){
   if(!dates.length)return alert('Bitte mindestens einen Tag auswählen.');
   const type=$('calendarEntryType').value;
   const records=getRecords();
-  const duration=['standby','training','other'].includes(type)?toMinutes($('calendarEntryDuration').value):0;
+  const duration=['standby','proceeding','training','other'].includes(type)?toMinutes($('calendarEntryDuration').value):0;
   const notes=$('calendarEntryNotes').value.trim();
 
   if(calendarEditingId){
@@ -423,15 +483,55 @@ function deleteCalendarEntry(){
     renderCalendar();renderStatistics();renderDashboard();
   }
 }
+
+function dutyCalendarSpan(r,mode){
+  if(!Number.isFinite(r.reportUtc))return {start:r.date,end:r.date};
+  const endMs=Number.isFinite(r.dutyEnd)?r.dutyEnd:(Number.isFinite(r.onUtc)?r.onUtc:r.reportUtc);
+  if(mode==='local'){
+    const startTz=r.depTz||r.homeTz||'UTC';
+    const endTz=r.arrTz||r.depTz||r.homeTz||'UTC';
+    return {start:utcToZonedFields(r.reportUtc,startTz).date,end:utcToZonedFields(endMs,endTz).date};
+  }
+  return {start:datePartsUtc(r.reportUtc).date,end:datePartsUtc(endMs).date};
+}
+function dutyAppearsOnDate(r,date,mode){
+  const span=dutyCalendarSpan(r,mode);
+  return date>=span.start&&date<=span.end;
+}
+function dutyCalendarTimeLabel(r,date,mode){
+  const span=dutyCalendarSpan(r,mode);
+  const continued=date!==span.start;
+  let startTime='',endTime='';
+  if(mode==='local'){
+    if(Number.isFinite(r.reportUtc))startTime=utcToZonedFields(r.reportUtc,r.depTz||r.homeTz||'UTC').time;
+    const endMs=Number.isFinite(r.dutyEnd)?r.dutyEnd:r.onUtc;
+    if(Number.isFinite(endMs))endTime=utcToZonedFields(endMs,r.arrTz||r.depTz||r.homeTz||'UTC').time;
+  }else{
+    if(Number.isFinite(r.reportUtc))startTime=datePartsUtc(r.reportUtc).time;
+    const endMs=Number.isFinite(r.dutyEnd)?r.dutyEnd:r.onUtc;
+    if(Number.isFinite(endMs))endTime=datePartsUtc(endMs).time;
+  }
+  if(span.start===span.end)return `${startTime}–${endTime} ${mode==='utc'?'UTC':'LT'}`;
+  if(date===span.start)return `${startTime} → ${mode==='utc'?'UTC':'LT'}`;
+  if(date===span.end)return `↳ bis ${endTime} ${mode==='utc'?'UTC':'LT'}`;
+  return `↳ läuft weiter (${mode==='utc'?'UTC':'LT'})`;
+}
+
 function renderCalendar(){
   const month=$('calendarMonth').value||today().slice(0,7);
+  const mode=$('calendarTimeMode')?.value||calendarTimeMode||'utc';
+  calendarTimeMode=mode;
   const [year,mon]=month.split('-').map(Number);
   const first=new Date(Date.UTC(year,mon-1,1));
   const daysInMonth=new Date(Date.UTC(year,mon,0)).getUTCDate();
   const offset=(first.getUTCDay()+6)%7;
   const grid=$('calendarGrid');grid.innerHTML='';
   for(let i=0;i<offset;i++){const blank=document.createElement('div');blank.className='calendar-day blank';grid.appendChild(blank)}
-  const records=calendarRecords().filter(r=>r.date&&r.date.startsWith(month));
+  const allRecords=calendarRecords();
+  const calendarEntries=allRecords.filter(r=>isCalendarRecord(r)&&r.date&&r.date.startsWith(month));
+  const dutyRecords=allRecords.filter(isDutyRecord);
+  const visibleDutyDates=new Set();
+
   for(let day=1;day<=daysInMonth;day++){
     const date=`${year}-${pad(mon)}-${pad(day)}`;
     const cell=document.createElement('div');cell.className='calendar-day';cell.tabIndex=0;cell.setAttribute('role','button');cell.setAttribute('aria-label',formatDate(date));
@@ -447,25 +547,22 @@ function renderCalendar(){
         resetCalendarForm(date);$('calendarEntryDate').scrollIntoView({behavior:'smooth',block:'center'});
       }
     };
-
-    cell.onclick=event=>{
-      if(event.target.closest('.calendar-item'))return;
-      selectCalendarDay();
-    };
-    cell.onkeydown=event=>{
-      if(event.key==='Enter'||event.key===' '){
-        event.preventDefault();
-        selectCalendarDay();
-      }
-    };
+    cell.onclick=event=>{if(event.target.closest('.calendar-item'))return;selectCalendarDay()};
+    cell.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();selectCalendarDay()}};
     cell.appendChild(head);
-    const dayRecords=records.filter(r=>r.date===date).sort((a,b)=>isDutyRecord(a)?-1:1);
+
+    const dutiesToday=dutyRecords.filter(r=>dutyAppearsOnDate(r,date,mode));
+    if(dutiesToday.length)visibleDutyDates.add(date);
+    const entriesToday=calendarEntries.filter(r=>r.date===date);
+    const dayRecords=[...dutiesToday,...entriesToday];
+
     dayRecords.forEach(r=>{
       const item=document.createElement('button');item.type='button';
       const type=isDutyRecord(r)?'duty':calendarTypeClass(r.entryType);
       item.className=`calendar-item ${type}`;
       if(isDutyRecord(r)){
-        item.innerHTML=`<strong>${escapeHtml(r.depCode||'Duty')}${r.arrCode?'–'+escapeHtml(r.arrCode):''}</strong><span>${escapeHtml(r.flightRef||'')} ${r.plannedFdp?formatDuration(r.plannedFdp):''}</span>`;
+        const span=dutyCalendarSpan(r,mode),continued=date!==span.start;
+        item.innerHTML=`<strong>${continued?'↳ ':''}${escapeHtml(r.depCode||'Duty')}${r.arrCode?'–'+escapeHtml(r.arrCode):''}</strong><span>${dutyCalendarTimeLabel(r,date,mode)}</span>`;
       }else{
         item.innerHTML=`<strong>${escapeHtml(calendarTypeName(r.entryType))}</strong><span>${r.dutyMinutes?formatDuration(r.dutyMinutes):''}</span>`;
       }
@@ -474,17 +571,16 @@ function renderCalendar(){
     });
     grid.appendChild(cell);
   }
-  const dutyDays=new Set(records.filter(isDutyRecord).map(r=>r.date)).size;
-  const offDays=records.filter(r=>r.entryType==='off').length;
-  const vacation=records.filter(r=>r.entryType==='vacation').length;
-  const sick=records.filter(r=>r.entryType==='sick').length;
-  $('calendarDutyDays').textContent=dutyDays;
+
+  const offDays=new Set(calendarEntries.filter(r=>r.entryType==='off').map(r=>r.date)).size;
+  const vacation=new Set(calendarEntries.filter(r=>r.entryType==='vacation').map(r=>r.date)).size;
+  const sick=new Set(calendarEntries.filter(r=>r.entryType==='sick').map(r=>r.date)).size;
+  $('calendarDutyDays').textContent=visibleDutyDates.size;
   $('calendarOffDays').textContent=`${offDays} / 7`;
   $('calendarOffDays').className=offDays>=7?'ok-text':'warn-text';
   $('calendarVacationDays').textContent=vacation;
   $('calendarSickDays').textContent=sick;
 }
-
 function statisticsSnapshot(dateString){
   const anchor=dateToUtcNoon(dateString||today());
   const end=anchor+12*3600000;
@@ -594,11 +690,12 @@ function bind(){
   $('autoDutyEndBtn').onclick=()=>{setAutoDutyEnd();calculate()};
   $('departureIcao').addEventListener('input',()=>{syncReport(reportInputMode);calculate()});$('arrivalIcao').addEventListener('input',()=>{syncOnBlock(onBlockInputMode);syncDutyEnd(dutyEndInputMode);calculate()});
   $('specialRule').addEventListener('change',()=>{updateSpecialFields();calculate()});
-  ['homeBaseIcao','flightRef','sectors','positioning','awayOver48','specialMinutes','extensionRestMode','augmentedCrew','standbyFacility','reducedRestMinutes','blockTime','notes'].forEach(id=>$(id).addEventListener('input',calculate));
+  ['homeBaseIcao','flightRef','sectors','positioning','specialMinutes','extensionRestMode','augmentedCrew','standbyFacility','reducedRestMinutes','blockTime','notes'].forEach(id=>$(id).addEventListener('input',calculate));
   $('saveBtn').onclick=saveRecord;$('resetBtn').onclick=resetForm;$('cancelEditBtn').onclick=resetForm;$('monthFilter').onchange=renderArchive;$('archiveSearch').addEventListener('input',renderArchive);$('pdfBtn').onclick=exportPDF;$('csvBtn').onclick=exportCSV;
   $('newDutyBtn').onclick=()=>{resetForm();switchView('entryView')};
   if($('openCalendarBtn'))$('openCalendarBtn').onclick=()=>{switchView('calendarView');renderCalendar()};
   $('calendarMonth').addEventListener('change',renderCalendar);
+  $('calendarTimeMode').addEventListener('change',()=>{calendarTimeMode=$('calendarTimeMode').value;renderCalendar()});
   $('prevMonthBtn').onclick=()=>{$('calendarMonth').value=monthShift($('calendarMonth').value,-1);renderCalendar()};
   $('nextMonthBtn').onclick=()=>{$('calendarMonth').value=monthShift($('calendarMonth').value,1);renderCalendar()};
   $('newCalendarEntryBtn').onclick=()=>resetCalendarForm($('calendarMonth').value+'-01');
@@ -619,7 +716,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.4';
+const CURRENT_APP_VERSION='1.9.5';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);

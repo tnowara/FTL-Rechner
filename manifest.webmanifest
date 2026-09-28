@@ -1,7 +1,7 @@
 {
   "name": "FAI FTL Logbook",
   "short_name": "FTL Logbook",
-  "description": "Offline FTL- und Dienstplan-App mit Berechnung der Local Days Free pro Monat und Kalenderjahr",
+  "description": "Offline FTL-App mit Split Duty, Proceeding, UTC/LT-Kalender und automatischer Home-TZ-Abwesenheit",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#071521",

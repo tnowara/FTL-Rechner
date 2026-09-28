@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.4",
-  "lastUpdated": "2026-08-03",
-  "notes": "Robuster Offline-Modus für GitHub Pages und iOS"
+  "appVersion": "1.9.5",
+  "lastUpdated": "2026-09-28",
+  "notes": "Split Duty korrigiert, Proceeding im Kalender, UTC/LT-Mehrtagdarstellung, automatische Home-TZ-Abwesenheit"
 }

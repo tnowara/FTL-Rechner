@@ -177,3 +177,13 @@
 .limit-card .progress-fill.danger{background:var(--danger)}
 .limit-card .progress-fill.warn{background:var(--warn)}
 .limit-card .progress-fill.ok{background:var(--ok)}
+
+/* Version 1.9.5 */
+.proceeding-dot{background:#65d6c3}
+.calendar-item.proceeding{background:rgba(101,214,195,.16);border-color:rgba(101,214,195,.30)}
+.recent-record.recent-proceeding{border-left:3px solid #65d6c3}
+#calendarTimeMode{min-width:72px}
+.auto-status-card{display:flex;flex-direction:column;gap:5px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:rgba(76,194,255,.06)}
+.auto-status-card span{font-size:12px;color:var(--muted)}
+.auto-status-card strong{font-size:14px}
+.auto-status-card small{color:var(--muted);line-height:1.35}
