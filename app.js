@@ -227,7 +227,8 @@ function calculate(){
     let maxDisc=$('augmentedCrew').checked?180:120;
     const disc=Math.max(0,specialMin);
     if(disc>maxDisc){valid=false;warnings.push(`Die gewählte Discretion überschreitet ${formatDuration(maxDisc)}.`)}
-    limit=normalLimit+Math.min(disc,maxDisc);dutyLimit=limit+15;
+    limit=normalLimit+Math.min(disc,maxDisc);dutyLimit=Infinity;
+    warnings.push('Bei Commander’s Discretion wird kein pauschales Duty-Limit aus FDP + 15 Minuten abgeleitet. Eigenständige Duty-/Sondergrenzen sind separat zu prüfen.');
     warnings.push('Nur bei unvorhergesehenen Umständen; Crew-Konsultation und IQSMS-Report erforderlich.')
   }
   if(rule==='standby'){
@@ -279,11 +280,46 @@ function clearResult(){currentResult=null;['plannedFdpValue','appliedRule','base
 function showStatus(title,state,msg){$('statusPill').className=`status ${state}`;$('statusPill').textContent=title;$('message').textContent=msg}
 function getRecords(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]}}
 function setRecords(r){localStorage.setItem(KEY,JSON.stringify(r))}
+function parseLegBlock(value){
+  const v=String(value||'').trim();
+  if(!v)return {minutes:0,valid:true};
+  const match=/^(\d{1,3}):([0-5]\d)$/.exec(v);
+  if(!match)return {minutes:0,valid:false};
+  return {minutes:Number(match[1])*60+Number(match[2]),valid:true};
+}
+function readLegBlocks(){
+  const inputs=[...document.querySelectorAll('.leg-block-input')];
+  const legs=inputs.map(input=>input.value.trim());
+  const parsed=legs.map(parseLegBlock);
+  return {legs,valid:parsed.every(x=>x.valid),total:parsed.reduce((sum,x)=>sum+x.minutes,0)};
+}
+function updateBlockTotal(){
+  const blocks=readLegBlocks();
+  $('blockTotal').textContent=blocks.valid?formatDuration(blocks.total):'Ungültige Eingabe';
+  $('blockValidation').textContent=blocks.valid?'':'Bitte alle Blockzeiten als HH:MM eingeben (z. B. 01:35).';
+  return blocks;
+}
+function renderLegBlockInputs(values){
+  const count=Number($('sectors').value)||1;
+  const old=values||[...document.querySelectorAll('.leg-block-input')].map(x=>x.value);
+  const target=$('legBlockInputs');target.replaceChildren();
+  for(let i=0;i<count;i++){
+    const label=document.createElement('label');label.textContent=`Leg ${i+1}`;
+    const input=document.createElement('input');input.type='text';input.className='leg-block-input';
+    input.inputMode='text';input.placeholder='HH:MM';input.autocomplete='off';
+    input.setAttribute('aria-label',`Blockzeit Leg ${i+1}`);
+    input.value=old[i]??'';
+    input.addEventListener('input',updateBlockTotal);
+    label.appendChild(input);target.appendChild(label);
+  }
+  updateBlockTotal();
+}
 function formRecord(){
-  return {id:editingId||((crypto.randomUUID&&crypto.randomUUID())||String(Date.now())),date:$('dutyDate').value,onBlockDate:$('onBlockDate').value,flightRef:$('flightRef').value.trim(),reportTime:$('reportTime').value,onBlockTime:$('onBlockTime').value,reportUtcDate:$('reportUtcDate').value,reportUtcTime:$('reportUtcTime').value,onBlockUtcDate:$('onBlockUtcDate').value,onBlockUtcTime:$('onBlockUtcTime').value,dutyEndUtcDate:$('dutyEndUtcDate').value,dutyEndUtcTime:$('dutyEndUtcTime').value,dutyEndLocalDate:$('dutyEndLocalDate').value,dutyEndLocalTime:$('dutyEndLocalTime').value,positioning:$('positioning').checked,awayOver48:$('awayOver48').checked,specialRule:$('specialRule').value,specialMinutes:+$('specialMinutes').value||0,extensionRestMode:$('extensionRestMode').value,augmentedCrew:$('augmentedCrew').checked,standbyFacility:$('standbyFacility').value,reducedRestMinutes:+$('reducedRestMinutes').value||0,blockTime:$('blockTime').value,blockMinutes:toMinutes($('blockTime').value),notes:$('notes').value.trim(),...currentResult,savedAt:new Date().toISOString()}
+  return {id:editingId||((crypto.randomUUID&&crypto.randomUUID())||String(Date.now())),date:$('dutyDate').value,onBlockDate:$('onBlockDate').value,flightRef:$('flightRef').value.trim(),reportTime:$('reportTime').value,onBlockTime:$('onBlockTime').value,reportUtcDate:$('reportUtcDate').value,reportUtcTime:$('reportUtcTime').value,onBlockUtcDate:$('onBlockUtcDate').value,onBlockUtcTime:$('onBlockUtcTime').value,dutyEndUtcDate:$('dutyEndUtcDate').value,dutyEndUtcTime:$('dutyEndUtcTime').value,dutyEndLocalDate:$('dutyEndLocalDate').value,dutyEndLocalTime:$('dutyEndLocalTime').value,positioning:$('positioning').checked,awayOver48:$('awayOver48').checked,specialRule:$('specialRule').value,specialMinutes:+$('specialMinutes').value||0,extensionRestMode:$('extensionRestMode').value,augmentedCrew:$('augmentedCrew').checked,standbyFacility:$('standbyFacility').value,reducedRestMinutes:+$('reducedRestMinutes').value||0,blockLegs:readLegBlocks().legs,blockTime:hoursMinutesLabel(readLegBlocks().total),blockMinutes:readLegBlocks().total,notes:$('notes').value.trim(),...currentResult,savedAt:new Date().toISOString()}
 }
 function saveRecord(){
   calculate();if(!currentResult)return alert('Bitte erst gültige Angaben eingeben.');
+  if(!updateBlockTotal().valid)return alert('Bitte Blockzeiten im Format HH:MM korrigieren.');
   const rec=formRecord(),records=getRecords(),idx=records.findIndex(r=>r.id===rec.id);
   if(idx>=0)records[idx]=rec;else records.push(rec);
   records.sort((a,b)=>a.reportUtc-b.reportUtc);setRecords(records);
@@ -302,13 +338,13 @@ function editRecord(id){
   $('dutyEndUtcDate').value=r.dutyEndUtcDate||datePartsUtc(r.dutyEnd).date;$('dutyEndUtcTime').value=r.dutyEndUtcTime||datePartsUtc(r.dutyEnd).time;
   $('dutyEndLocalDate').value=r.dutyEndLocalDate||'';$('dutyEndLocalTime').value=r.dutyEndLocalTime||'';
   $('positioning').checked=r.positioning!==false;$('awayOver48').checked=!!r.awayOver48;$('specialRule').value=r.specialRule||r.rule||'basic';$('specialMinutes').value=r.specialMinutes||0;
-  $('extensionRestMode').value=r.extensionRestMode||'post4';$('augmentedCrew').checked=!!r.augmentedCrew;$('standbyFacility').value=r.standbyFacility||'no_sleep';$('reducedRestMinutes').value=r.reducedRestMinutes||60;$('blockTime').value=r.blockTime||`${pad(Math.floor((r.blockMinutes||0)/60))}:${pad((r.blockMinutes||0)%60)}`;$('notes').value=r.notes||'';
+  $('extensionRestMode').value=r.extensionRestMode||'post4';$('augmentedCrew').checked=!!r.augmentedCrew;$('standbyFacility').value=r.standbyFacility||'no_sleep';$('reducedRestMinutes').value=r.reducedRestMinutes||60;renderLegBlockInputs(Array.isArray(r.blockLegs)?r.blockLegs:(r.blockMinutes>0?[hoursMinutesLabel(r.blockMinutes)]:[]));$('notes').value=r.notes||'';
   reportInputMode='utc';onBlockInputMode='utc';dutyEndInputMode='utc';dutyEndManual=true;updateSpecialFields();switchView('entryView');calculate();window.scrollTo({top:0,behavior:'smooth'})
 }
 function resetForm(){
   editingId=null;setEditing(false);$('dutyDate').value=today();$('onBlockDate').value=today();$('flightRef').value='';$('departureIcao').value='';$('arrivalIcao').value='';$('homeBaseIcao').value='EDDN';$('reportTime').value='15:00';$('onBlockTime').value='03:00';
   ['reportUtcDate','reportUtcTime','onBlockUtcDate','onBlockUtcTime','dutyEndUtcDate','dutyEndUtcTime','dutyEndLocalDate','dutyEndLocalTime'].forEach(id=>$(id).value='');
-  $('sectors').value='1';$('positioning').checked=true;$('awayOver48').checked=false;$('specialRule').value='basic';$('specialMinutes').value=0;$('blockTime').value='00:00';$('notes').value='';
+  $('sectors').value='1';$('positioning').checked=true;$('awayOver48').checked=false;$('specialRule').value='basic';$('specialMinutes').value=0;renderLegBlockInputs([]);$('notes').value='';
   reportInputMode='utc';onBlockInputMode='utc';dutyEndInputMode='utc';dutyEndManual=false;updateSpecialFields();calculate()
 }
 function deleteRecord(id){if(confirm('Diesen Datensatz wirklich löschen?')){if(editingId===id)resetForm();setRecords(getRecords().filter(r=>r.id!==id));renderArchive();renderDashboard();renderStatistics();renderCalendar()}}
@@ -381,7 +417,7 @@ function renderDashboard(){
   });
 }
 function exportBackup(){
-  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.6',exportedAt:new Date().toISOString(),records:getRecords()};
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.7',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
 }
@@ -724,7 +760,8 @@ function bind(){
   $('autoDutyEndBtn').onclick=()=>{setAutoDutyEnd();calculate()};
   $('departureIcao').addEventListener('input',()=>{syncReport(reportInputMode);calculate()});$('arrivalIcao').addEventListener('input',()=>{syncOnBlock(onBlockInputMode);syncDutyEnd(dutyEndInputMode);calculate()});
   $('specialRule').addEventListener('change',()=>{updateSpecialFields();calculate()});
-  ['homeBaseIcao','flightRef','sectors','positioning','specialMinutes','extensionRestMode','augmentedCrew','standbyFacility','reducedRestMinutes','blockTime','notes'].forEach(id=>$(id).addEventListener('input',calculate));
+  $('sectors').addEventListener('change',()=>{renderLegBlockInputs();calculate()});
+  ['homeBaseIcao','flightRef','positioning','specialMinutes','extensionRestMode','augmentedCrew','standbyFacility','reducedRestMinutes','notes'].forEach(id=>$(id).addEventListener('input',calculate));
   $('saveBtn').onclick=saveRecord;$('resetBtn').onclick=resetForm;$('cancelEditBtn').onclick=resetForm;$('monthFilter').onchange=renderArchive;$('archiveSearch').addEventListener('input',renderArchive);$('pdfBtn').onclick=exportPDF;$('csvBtn').onclick=exportCSV;
   $('newDutyBtn').onclick=()=>{resetForm();switchView('entryView')};
   if($('openCalendarBtn'))$('openCalendarBtn').onclick=()=>{switchView('calendarView');renderCalendar()};
@@ -742,7 +779,7 @@ function bind(){
   document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{switchView(t.dataset.view);if(t.dataset.view==='archiveView')renderArchive();if(t.dataset.view==='statisticsView')renderStatistics();if(t.dataset.view==='calendarView')renderCalendar()})
 }
 async function init(){
-  bind();updateSpecialFields();setSyncBadge('report','utc');setSyncBadge('onBlock','utc');
+  bind();renderLegBlockInputs([]);updateSpecialFields();setSyncBadge('report','utc');setSyncBadge('onBlock','utc');
   try{const data=await fetch('airports.json').then(r=>{if(!r.ok)throw new Error('airports.json');return r.json()});airports=new Map(data.map(a=>[a.i,a]));calculate()}
   catch(e){showStatus('DATENBANKFEHLER','danger','airports.json konnte nicht geladen werden.')}
   renderArchive();renderDashboard();renderStatistics();renderCalendar()
@@ -750,7 +787,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.6';
+const CURRENT_APP_VERSION='1.9.7';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);

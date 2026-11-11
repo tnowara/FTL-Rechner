@@ -340,10 +340,13 @@
           <small id="awayStatusHelp">Aus Home Base, Flughafenzeitzonen und gespeicherter Diensthistorie.</small>
           <input id="awayOver48" type="checkbox" hidden>
         </div>
-        <label>Blockzeit gesamt
-          <input id="blockTime" type="time" value="00:00" step="60">
-          <small>Optional; Summe aller operativen Blockzeiten dieses Datensatzes.</small>
-        </label>
+        <div class="leg-block-panel">
+          <strong>Blockzeiten je Leg</strong>
+          <small>Normale Textfelder im Format HH:MM. Die Anzahl entspricht den operativen Sektoren.</small>
+          <div id="legBlockInputs" class="leg-block-inputs"></div>
+          <div class="leg-block-total">Blockzeit gesamt: <strong id="blockTotal">0:00 h</strong></div>
+          <small id="blockValidation" class="block-validation" role="status"></small>
+        </div>
         <label>Notiz<textarea id="notes" rows="3" placeholder="Besonderheiten, Crew Control, Delay …"></textarea></label>
       </div>
     </details>
@@ -502,7 +505,7 @@
   <p>Berechnung nach FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0 vom 08.11.2024. Bei genehmigungs-, ereignis- oder nachweispflichtigen Sonderregeln zeigt die App zusätzliche Warnhinweise; sie ersetzt keine Freigabe durch Crew Control, Commander oder LBA.</p>
 </section>
 </main>
-<footer>Version 1.9.6 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
+<footer>Version 1.9.7 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
 <script src="app.js"></script>
 </body>
 </html>

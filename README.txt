@@ -1,29 +1,11 @@
-FAI FTL Logbook PWA 1.9.6
+FTL Logbook PWA 1.9.7
 
-Neu:
-- Kalendertyp „Layover“ ergänzt.
-- Layover wird als eigener Kalendereintrag dargestellt und zählt nicht als Duty.
-- Bei jeder Duty-Eingabe prüft die App automatisch den unmittelbar vorherigen
-  gespeicherten Flugdienst.
-- Direkte Überschneidung: Reporting liegt vor dem Dienstende des vorherigen
-  Dienstes -> rote Warnung „DIENSTE ÜBERSCHNEIDEN SICH“.
-- Ruhezeitkonflikt: Reporting liegt zwar nach Dienstende, aber vor dem aus dem
-  vorherigen Datensatz berechneten frühesten Reporting -> rote Warnung
-  „MINDESTRUHE UNTERSCHRITTEN“.
-- Bei ausreichender Ruhezeit wird die Reserve bis zum neuen Reporting angezeigt.
-- Beim Bearbeiten eines bestehenden Datensatzes wird dieser selbst aus der
-  Suche nach dem vorherigen Dienst ausgeschlossen.
-
-OM-A Bezug:
-7.5.1.1: Mindestruhe vor einer FDP an Home Base mindestens so lang wie die
-vorherige Duty oder 12 h, je nachdem was größer ist.
-7.5.1.2: Away from Home Base mindestens so lang wie die vorherige Duty oder
-10 h, je nachdem was größer ist.
-Die App verwendet für die Kollisionsprüfung den bereits für den vorherigen
-Datensatz berechneten Wert „earliestNextReport“, sodass auch dort angewandte
-Zeitzonen- und Sonderregeln berücksichtigt bleiben.
-
-Update:
-app-version.json 1.9.6
-CURRENT_APP_VERSION 1.9.6
-Service Worker Cache ftl-logbook-v1.9.6
+- Blockzeiten für jeden operativen Sektor separat als HH:MM-Textfeld.
+- Automatische Summe; Speicherung in blockLegs und blockMinutes.
+- Bestehende Datensätze mit nur einer Gesamtsumme werden beim Bearbeiten
+  mit der bisherigen Summe im ersten Leg vorbelegt; bitte Leg-Aufteilung prüfen.
+- Commander's Discretion: künstliche Duty-Grenze FDP + 15 Minuten entfernt.
+  FDP bleibt limitierend für die Discretion-Prüfung; Duty weiterhin für Ruhezeit.
+  Andere eigenständige Duty-Limits müssen gesondert geprüft werden.
+- Discretion darf nicht als vorab planbare FDP-Verlängerung benutzt werden.
+- Versions- und Offline-Cache auf 1.9.7 erhöht.
