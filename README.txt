@@ -12,3 +12,4 @@ FTL Logbook PWA 1.9.7
 
 Version 1.9.8: Blockzeiten je Leg werden dauerhaft sichtbar außerhalb „Weitere Angaben“ dargestellt.
 \nVersion 1.9.9: Blockzeitfelder verwenden auf Mobilgeräten den Nummernblock. 130 wird bei Verlassen des Felds zu 1:30, 45 zu 0:45. Die Summierung erfolgt sofort.\n
+Version 1.9.10: Wiederholte falsche Update-Hinweise behoben. Wartender Service Worker wird nicht mehr ohne höhere Versionsnummer als neues Update angezeigt. Offline-Cache-Erkennung aktualisiert.

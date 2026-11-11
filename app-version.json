@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.9",
+  "appVersion": "1.9.10",
   "lastUpdated": "2026-11-11",
-  "notes": "Blockzeiten per Ziffernblock eingeben: 130 → 1:30"
+  "notes": "Update-Hinweis nur bei tatsächlich höherer Versionsnummer; Offline-Cache-Status korrigiert"
 }

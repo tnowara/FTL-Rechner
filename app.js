@@ -437,7 +437,7 @@ function renderDashboard(){
   });
 }
 function exportBackup(){
-  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.9',exportedAt:new Date().toISOString(),records:getRecords()};
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.10',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
 }
@@ -807,7 +807,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.9';
+const CURRENT_APP_VERSION='1.9.10';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);
@@ -844,10 +844,11 @@ async function checkForAppUpdate(manual=true){
 
     if(compareVersions(remote.appVersion,CURRENT_APP_VERSION)>0){
       showUpdateStatus(`Neue Version ${remote.appVersion} verfügbar.`, 'available', true);
-    }else if(waitingWorker||swRegistration?.waiting){
-      waitingWorker=waitingWorker||swRegistration.waiting;
-      showUpdateStatus('Ein Update wurde geladen und kann installiert werden.', 'available', true);
     }else{
+      // A waiting service worker alone does not imply a newer app version.
+      // GitHub Pages can serve the same release while the browser sees
+      // a changed worker script and repeatedly reports an update.
+      waitingWorker=null;
       showUpdateStatus(`Version ${CURRENT_APP_VERSION} ist aktuell.`, 'success', false);
       if(manual)setTimeout(hideUpdateStatus,3500);
     }
@@ -861,8 +862,13 @@ function observeInstallingWorker(worker){
   if(!worker)return;
   worker.addEventListener('statechange',()=>{
     if(worker.state==='installed'&&navigator.serviceWorker.controller){
-      waitingWorker=swRegistration?.waiting||worker;
-      showUpdateStatus('Ein Update wurde heruntergeladen.', 'available', true);
+      // Only advertise an update when the remote version is actually newer.
+      fetchRemoteVersion().then(remote=>{
+        if(compareVersions(remote.appVersion,CURRENT_APP_VERSION)>0){
+          waitingWorker=swRegistration?.waiting||worker;
+          showUpdateStatus(`Neue Version ${remote.appVersion} verfügbar.`, 'available', true);
+        }
+      }).catch(()=>{});
     }
   });
 }
@@ -888,7 +894,7 @@ function showOfflineReadyMessage(){
   navigator.serviceWorker.ready.then(async registration=>{
     try{
       const cacheNames=await caches.keys();
-      const ready=cacheNames.some(name=>name==='ftl-logbook-v1.9.4');
+      const ready=cacheNames.some(name=>name==='ftl-logbook-v1.9.10');
       if(ready&&!navigator.onLine){
         showUpdateStatus('Offline-Modus aktiv. Die App wird aus dem Gerätespeicher geladen.','success',false);
       }
@@ -918,11 +924,15 @@ if('serviceWorker'in navigator){
     location.reload();
   });
 
-  navigator.serviceWorker.register('service-worker.js').then(reg=>{
+  navigator.serviceWorker.register('service-worker.js',{updateViaCache:'none'}).then(reg=>{
     swRegistration=reg;
     if(reg.waiting){
-      waitingWorker=reg.waiting;
-      showUpdateStatus('Ein Update wurde geladen.', 'available', true);
+      fetchRemoteVersion().then(remote=>{
+        if(compareVersions(remote.appVersion,CURRENT_APP_VERSION)>0){
+          waitingWorker=reg.waiting;
+          showUpdateStatus(`Neue Version ${remote.appVersion} verfügbar.`, 'available', true);
+        }
+      }).catch(()=>{});
     }
     reg.addEventListener('updatefound',()=>observeInstallingWorker(reg.installing));
     setTimeout(()=>checkForAppUpdate(false),1800);
