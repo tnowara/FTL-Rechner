@@ -1,12 +1,12 @@
-const CACHE = "ftl-logbook-v1.9.12";
+const CACHE = "ftl-logbook-v1.9.13";
 const SCOPE = self.registration.scope;
 const url = path => new URL(path, SCOPE).toString();
 
 const CRITICAL_ASSETS = [
   url("./"),
   url("index.html"),
-  url("styles.css"),
-  url("app.js"),
+  url("styles.css?v=1.9.13"),
+  url("app.js?v=1.9.13"),
   url("manifest.webmanifest"),
   url("icon.svg")
 ];
@@ -88,6 +88,12 @@ self.addEventListener("fetch", event => {
 
   if (requestUrl.pathname.endsWith("/app-version.json")) {
     event.respondWith(networkFirst(request, url("app-version.json")));
+    return;
+  }
+
+  // JS/CSS must not remain pinned to a stale cache after a GitHub deployment.
+  if (requestUrl.pathname.endsWith("/app.js") || requestUrl.pathname.endsWith("/styles.css")) {
+    event.respondWith(networkFirst(request));
     return;
   }
 

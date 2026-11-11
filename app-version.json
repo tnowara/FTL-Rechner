@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.12",
+  "appVersion": "1.9.13",
   "lastUpdated": "2026-11-11",
-  "notes": "Unwirksame Positioning-vor-Flug-Checkbox entfernt; Positioning nach ON-Block unabhängig von Sonderregel-Dropdown als Checkbox und Minutenfeld"
+  "notes": "Update-Reparatur: versionierte JavaScript/CSS-Dateien, Network-first für Programmdateien und erzwungene Navigation"
 }

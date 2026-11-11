@@ -456,7 +456,7 @@ function renderDashboard(){
   });
 }
 function exportBackup(){
-  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.12',exportedAt:new Date().toISOString(),records:getRecords()};
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.13',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
 }
@@ -831,7 +831,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.12';
+const CURRENT_APP_VERSION='1.9.13';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);
@@ -897,19 +897,13 @@ function observeInstallingWorker(worker){
   });
 }
 async function applyAppUpdate(){
-  waitingWorker=waitingWorker||swRegistration?.waiting;
-  if(waitingWorker){
-    showUpdateStatus('Update wird installiert …','info',false);
-    waitingWorker.postMessage({type:'SKIP_WAITING'});
-  }else{
-    showUpdateStatus('Update wird vorbereitet …','info',false);
-    try{
-      if(swRegistration)await swRegistration.update();
-      setTimeout(()=>location.reload(),700);
-    }catch{
-      location.reload();
-    }
-  }
+  showUpdateStatus('Aktualisiere App-Dateien …','info',false);
+  try{if(swRegistration)await swRegistration.update()}catch{}
+  // Navigation is network-first; query bypasses old SW navigation cache keys.
+  // The new HTML references versioned JS/CSS so old cache-first workers miss them.
+  const url=new URL(location.href);
+  url.searchParams.set('app-update',String(Date.now()));
+  location.replace(url.toString());
 }
 
 
@@ -918,7 +912,7 @@ function showOfflineReadyMessage(){
   navigator.serviceWorker.ready.then(async registration=>{
     try{
       const cacheNames=await caches.keys();
-      const ready=cacheNames.some(name=>name==='ftl-logbook-v1.9.11');
+      const ready=cacheNames.some(name=>name==='ftl-logbook-v1.9.13');
       if(ready&&!navigator.onLine){
         showUpdateStatus('Offline-Modus aktiv. Die App wird aus dem Gerätespeicher geladen.','success',false);
       }

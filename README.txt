@@ -16,3 +16,5 @@ Version 1.9.10: Wiederholte falsche Update-Hinweise behoben. Wartender Service W
 
 Version 1.9.11: Fehlerhafte Regex-Escapes bei Blockzeiten korrigiert; 130 → 1:30 funktioniert. Während der Eingabe keine Fehlermeldung. iPad-Tastatur via inputmode=decimal angefordert (OS bestimmt tatsächliches Layout).\n
 Version 1.9.12: Positioning vor operativem Flug entfernt. Positioning nach ON-Block als unabhängige Checkbox mit Minutenfeld (nicht mehr im Sonderregelungs-Dropdown). Alte Datensätze mit post_positioning werden beim Bearbeiten in die neuen Felder übernommen.
+
+Version 1.9.13: Fix für wiederkehrende Update-Anzeige. HTML referenziert versionierte JS/CSS URLs; SW lädt Programmdateien network-first; Update-Knopf führt erzwungene Navigation aus. Lokale Daten bleiben unverändert.
