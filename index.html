@@ -349,8 +349,8 @@
       <div class="block-keypad-actions"><button type="button" data-key="next">Nächstes Leg</button><button type="button" data-key="done">Fertig</button></div>
     </div>
 
-    <details>
-      <summary>Weitere Angaben</summary>
+    <section class="additional-fields" aria-labelledby="additionalFieldsTitle">
+      <h3 id="additionalFieldsTitle">Weitere Angaben</h3>
       <div class="grid details-grid">
         <div class="auto-status-card">
           <span>Abwesenheit von Home-Base-Zeitzone</span>
@@ -361,7 +361,7 @@
 
         <label>Notiz<textarea id="notes" rows="3" placeholder="Besonderheiten, Crew Control, Delay …"></textarea></label>
       </div>
-    </details>
+    </section>
   </section>
 
   <section id="resultCard" class="card result" aria-live="polite">
@@ -517,7 +517,7 @@
   <p>Berechnung nach FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0 vom 08.11.2024. Bei genehmigungs-, ereignis- oder nachweispflichtigen Sonderregeln zeigt die App zusätzliche Warnhinweise; sie ersetzt keine Freigabe durch Crew Control, Commander oder LBA.</p>
 </section>
 </main>
-<footer>Version 1.9.15 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
+<footer>Version 1.9.16 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
 <script src="app.js?v=1.9.14"></script>
 </body>
 </html>

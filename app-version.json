@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.15",
+  "appVersion": "1.9.16",
   "lastUpdated": "2026-11-11",
-  "notes": "Doppelte Positioning-Eingabe entfernt; Duty-Ende direkt aus separater Eingabe"
+  "notes": "Weitere Angaben dauerhaft sichtbar, kein Dropdown"
 }

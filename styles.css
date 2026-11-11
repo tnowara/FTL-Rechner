@@ -212,3 +212,5 @@
 .block-keypad-grid button{min-height:58px;font-size:24px;font-weight:600;border-radius:10px;touch-action:manipulation}
 .block-keypad-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
 .block-keypad-actions button{min-height:48px;touch-action:manipulation}
+
+.additional-fields{margin-top:18px;border-top:1px solid var(--line);padding-top:18px}.additional-fields h3{font-size:16px;color:var(--accent2);margin:0}.additional-fields .details-grid{margin-top:14px}
