@@ -24,3 +24,5 @@ Version 1.9.13: Fix für wiederkehrende Update-Anzeige. HTML referenziert versio
 Version 1.9.15: Positioning nach ON-Block (Checkbox + Minuten) entfernt. Duty-Ende wird ausschließlich aus separat eingegebenem Datum/Uhrzeit bestimmt; keine zusätzliche Addition. Bestehende Datensätze behalten ihre eingegebenen Duty-Ende-Felder.
 
 1.9.16: Weitere Angaben (Abwesenheit Home-Base-Zeitzone und Notiz) dauerhaft sichtbar statt aufklappbarem Menü.
+
+Version 1.9.17: JS/CSS-URLs in HTML und Service Worker auf v1.9.17 korrigiert (vorher irrtümlich v1.9.14); Offline-Statuscache angepasst.

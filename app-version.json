@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.16",
+  "appVersion": "1.9.17",
   "lastUpdated": "2026-11-11",
-  "notes": "Weitere Angaben dauerhaft sichtbar, kein Dropdown"
+  "notes": "Fix: HTML und Offline-Shell laden versionierte aktuelle JS/CSS-Dateien; Cache-Status angepasst"
 }

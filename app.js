@@ -864,7 +864,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.15';
+const CURRENT_APP_VERSION='1.9.17';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);
@@ -933,7 +933,7 @@ async function applyAppUpdate(){
   showUpdateStatus('Aktualisiere App-Dateien …','info',false);
   try{if(swRegistration)await swRegistration.update()}catch{}
   // Navigation is network-first; query bypasses old SW navigation cache keys.
-  // The new HTML references versioned JS/CSS so old cache-first workers miss them.
+  // HTML references a fresh version of JS/CSS, so older workers cannot reuse them.
   const url=new URL(location.href);
   url.searchParams.set('app-update',String(Date.now()));
   location.replace(url.toString());
@@ -945,7 +945,7 @@ function showOfflineReadyMessage(){
   navigator.serviceWorker.ready.then(async registration=>{
     try{
       const cacheNames=await caches.keys();
-      const ready=cacheNames.some(name=>name==='ftl-logbook-v1.9.13');
+      const ready=cacheNames.some(name=>name==='ftl-logbook-v1.9.17');
       if(ready&&!navigator.onLine){
         showUpdateStatus('Offline-Modus aktiv. Die App wird aus dem Gerätespeicher geladen.','success',false);
       }

@@ -1,12 +1,12 @@
-const CACHE = "ftl-logbook-v1.9.16";
+const CACHE = "ftl-logbook-v1.9.17";
 const SCOPE = self.registration.scope;
 const url = path => new URL(path, SCOPE).toString();
 
 const CRITICAL_ASSETS = [
   url("./"),
   url("index.html"),
-  url("styles.css?v=1.9.14"),
-  url("app.js?v=1.9.14"),
+  url("styles.css?v=1.9.17"),
+  url("app.js?v=1.9.17"),
   url("manifest.webmanifest"),
   url("icon.svg")
 ];
