@@ -200,3 +200,15 @@
 .leg-block-inputs input{width:100%;box-sizing:border-box}
 .leg-block-total{display:flex;justify-content:space-between;gap:12px;padding-top:8px;border-top:1px solid var(--line)}
 .block-validation{color:var(--danger)}
+
+/* 1.9.14: custom block-time keypad; no iPadOS keyboard */
+.leg-block-input{cursor:pointer;caret-color:transparent}
+.leg-block-input.keypad-active{outline:2px solid var(--accent,#57b9ef);outline-offset:2px}
+.block-keypad{max-width:440px;width:100%;box-sizing:border-box;margin:0 auto 16px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--card,#202a34);box-shadow:0 12px 28px rgba(0,0,0,.25)}
+.block-keypad.hidden{display:none!important}
+.block-keypad-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+#blockKeypadPreview{font-variant-numeric:tabular-nums;font-size:22px;font-weight:700}
+.block-keypad-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.block-keypad-grid button{min-height:58px;font-size:24px;font-weight:600;border-radius:10px;touch-action:manipulation}
+.block-keypad-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+.block-keypad-actions button{min-height:48px;touch-action:manipulation}

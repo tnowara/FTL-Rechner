@@ -310,37 +310,83 @@ function updateBlockTotal(){
   $('blockValidation').textContent=blocks.valid?'':'Minuten müssen zwischen 00 und 59 liegen (z. B. 130 → 1:30).';
   return blocks;
 }
+let activeBlockInput=null;
+function closeBlockKeypad(){
+  const panel=$('blockKeypad');
+  if(activeBlockInput){
+    const parsed=parseLegBlock(activeBlockInput.value);
+    if(parsed.valid&&activeBlockInput.value.trim())activeBlockInput.value=parsed.formatted;
+    activeBlockInput.classList.remove('keypad-active');
+  }
+  activeBlockInput=null;
+  panel.classList.add('hidden');
+  updateBlockTotal();
+}
+function openBlockKeypad(input){
+  if(activeBlockInput&&activeBlockInput!==input){
+    const parsed=parseLegBlock(activeBlockInput.value);
+    if(parsed.valid&&activeBlockInput.value.trim())activeBlockInput.value=parsed.formatted;
+    activeBlockInput.classList.remove('keypad-active');
+  }
+  activeBlockInput=input;
+  input.classList.add('keypad-active');
+  $('blockKeypadTitle').textContent=input.getAttribute('aria-label');
+  $('blockKeypad').classList.remove('hidden');
+  refreshKeypadPreview();
+  // Keep the field and keypad in view without summoning the OS keyboard.
+  $('blockKeypad').scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function refreshKeypadPreview(){
+  if(!activeBlockInput)return;
+  const parsed=parseLegBlock(activeBlockInput.value);
+  $('blockKeypadPreview').textContent=parsed.valid?(parsed.formatted||'0:00'):'Minuten prüfen';
+  const fields=[...document.querySelectorAll('.leg-block-input')];
+  const all=fields.map(el=>parseLegBlock(el.value));
+  $('blockTotal').textContent=formatDuration(all.reduce((sum,x)=>sum+(x.valid?x.minutes:0),0));
+  $('blockValidation').textContent='';
+}
+function blockKeypadAction(key){
+  if(!activeBlockInput)return;
+  if(key==='done'){closeBlockKeypad();return;}
+  if(key==='next'){
+    const fields=[...document.querySelectorAll('.leg-block-input')];
+    const next=fields[fields.indexOf(activeBlockInput)+1];
+    if(next)openBlockKeypad(next);else closeBlockKeypad();
+    return;
+  }
+  const raw=activeBlockInput.value.replace(/\D/g,'');
+  if(key==='clear')activeBlockInput.value='';
+  else if(key==='back')activeBlockInput.value=raw.slice(0,-1);
+  else if(/^\d$/.test(key)&&raw.length<5)activeBlockInput.value=raw+key;
+  refreshKeypadPreview();
+}
+function initBlockKeypad(){
+  $('blockKeypad').querySelectorAll('button[data-key]').forEach(button=>{
+    button.addEventListener('click',()=>blockKeypadAction(button.dataset.key));
+  });
+  document.addEventListener('pointerdown',event=>{
+    if(!activeBlockInput)return;
+    if(event.target.closest('#blockKeypad')||event.target.closest('.leg-block-input'))return;
+    closeBlockKeypad();
+  });
+}
 function renderLegBlockInputs(values){
+  closeBlockKeypad();
   const count=Number($('sectors').value)||1;
   const old=values||[...document.querySelectorAll('.leg-block-input')].map(x=>x.value);
   const target=$('legBlockInputs');target.replaceChildren();
   for(let i=0;i<count;i++){
     const label=document.createElement('label');label.textContent=`Leg ${i+1}`;
     const input=document.createElement('input');input.type='text';input.className='leg-block-input';
-    input.inputMode='decimal';input.placeholder='z. B. 130';input.autocomplete='off';
-// decimal asks iPadOS for the number-and-symbol keyboard (with 7-8-9 keypad);
-// the actual system keyboard is controlled by iPadOS, not the web app.
-    input.setAttribute('aria-label',`Blockzeit Leg ${i+1} in Stunden und Minuten`);
+    input.readOnly=true;input.inputMode='none';input.placeholder='Antippen: 130 → 1:30';input.autocomplete='off';
+    input.setAttribute('aria-label',`Blockzeit Leg ${i+1}`);
     input.value=old[i]??'';
-    input.addEventListener('input',()=>{
-      // During entry, partial digits must not produce a permanent error banner.
-      const fields=[...document.querySelectorAll('.leg-block-input')];
-      const parsed=fields.map(el=>parseLegBlock(el.value));
-      const total=parsed.reduce((sum,x)=>sum+(x.valid?x.minutes:0),0);
-      $('blockTotal').textContent=formatDuration(total);
-      $('blockValidation').textContent='';
-    });
-    input.addEventListener('blur',()=>{
-      const parsed=parseLegBlock(input.value);
-      if(parsed.valid&&input.value.trim())input.value=parsed.formatted;
-      updateBlockTotal();
-    });
+    input.addEventListener('click',()=>openBlockKeypad(input));
+    input.addEventListener('focus',()=>openBlockKeypad(input));
     input.addEventListener('keydown',event=>{
-      if(event.key==='Enter'){
+      if(/^\d$/.test(event.key)||event.key==='Backspace'||event.key==='Enter'){
         event.preventDefault();
-        input.blur();
-        const next=target.querySelectorAll('.leg-block-input')[i+1];
-        if(next)next.focus();
+        blockKeypadAction(event.key==='Backspace'?'back':event.key==='Enter'?'next':event.key);
       }
     });
     label.appendChild(input);target.appendChild(label);
@@ -823,7 +869,7 @@ function bind(){
   document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{switchView(t.dataset.view);if(t.dataset.view==='archiveView')renderArchive();if(t.dataset.view==='statisticsView')renderStatistics();if(t.dataset.view==='calendarView')renderCalendar()})
 }
 async function init(){
-  bind();renderLegBlockInputs([]);updateSpecialFields();setSyncBadge('report','utc');setSyncBadge('onBlock','utc');
+  bind();initBlockKeypad();renderLegBlockInputs([]);updateSpecialFields();setSyncBadge('report','utc');setSyncBadge('onBlock','utc');
   try{const data=await fetch('airports.json').then(r=>{if(!r.ok)throw new Error('airports.json');return r.json()});airports=new Map(data.map(a=>[a.i,a]));calculate()}
   catch(e){showStatus('DATENBANKFEHLER','danger','airports.json konnte nicht geladen werden.')}
   renderArchive();renderDashboard();renderStatistics();renderCalendar()
@@ -831,7 +877,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.13';
+const CURRENT_APP_VERSION='1.9.14';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);

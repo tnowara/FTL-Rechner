@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.13",
+  "appVersion": "1.9.14",
   "lastUpdated": "2026-11-11",
-  "notes": "Update-Reparatur: versionierte JavaScript/CSS-Dateien, Network-first für Programmdateien und erzwungene Navigation"
+  "notes": "Eigener Blockzeit-Nummernblock ohne iPadOS-Tastatur; 130 wird zu 1:30"
 }

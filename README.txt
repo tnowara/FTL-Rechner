@@ -18,3 +18,5 @@ Version 1.9.11: Fehlerhafte Regex-Escapes bei Blockzeiten korrigiert; 130 → 1:
 Version 1.9.12: Positioning vor operativem Flug entfernt. Positioning nach ON-Block als unabhängige Checkbox mit Minutenfeld (nicht mehr im Sonderregelungs-Dropdown). Alte Datensätze mit post_positioning werden beim Bearbeiten in die neuen Felder übernommen.
 
 Version 1.9.13: Fix für wiederkehrende Update-Anzeige. HTML referenziert versionierte JS/CSS URLs; SW lädt Programmdateien network-first; Update-Knopf führt erzwungene Navigation aus. Lokale Daten bleiben unverändert.
+
+1.9.14: Eigener Nummernblock für Leg-Blockzeiten (Ziffern, Löschen, Nächstes Leg, Fertig); Systemtastatur deaktiviert.
