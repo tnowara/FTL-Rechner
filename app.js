@@ -282,21 +282,28 @@ function getRecords(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}cat
 function setRecords(r){localStorage.setItem(KEY,JSON.stringify(r))}
 function parseLegBlock(value){
   const v=String(value||'').trim();
-  if(!v)return {minutes:0,valid:true};
-  const match=/^(\d{1,3}):([0-5]\d)$/.exec(v);
-  if(!match)return {minutes:0,valid:false};
-  return {minutes:Number(match[1])*60+Number(match[2]),valid:true};
+  if(!v)return {minutes:0,valid:true,formatted:''};
+  // 130 => 1:30, 45 => 0:45, 1230 => 12:30.
+  // Existing saved HH:MM values remain compatible.
+  const match=/^(\\d{1,3}):([0-5]\\d)$/.exec(v);
+  if(match){
+    const hours=Number(match[1]),minutes=Number(match[2]);
+    return {minutes:hours*60+minutes,valid:true,formatted:`${hours}:${String(minutes).padStart(2,'0')}`};
+  }
+  if(!/^\\d{1,5}$/.test(v))return {minutes:0,valid:false,formatted:v};
+  const hours=Number(v.slice(0,-2)||0),minutes=Number(v.slice(-2));
+  if(minutes>=60)return {minutes:0,valid:false,formatted:v};
+  return {minutes:hours*60+minutes,valid:true,formatted:`${hours}:${String(minutes).padStart(2,'0')}`};
 }
 function readLegBlocks(){
   const inputs=[...document.querySelectorAll('.leg-block-input')];
-  const legs=inputs.map(input=>input.value.trim());
-  const parsed=legs.map(parseLegBlock);
-  return {legs,valid:parsed.every(x=>x.valid),total:parsed.reduce((sum,x)=>sum+x.minutes,0)};
+  const parsed=inputs.map(input=>parseLegBlock(input.value));
+  return {legs:parsed.map(x=>x.valid?x.formatted:''),valid:parsed.every(x=>x.valid),total:parsed.reduce((sum,x)=>sum+x.minutes,0)};
 }
 function updateBlockTotal(){
   const blocks=readLegBlocks();
   $('blockTotal').textContent=blocks.valid?formatDuration(blocks.total):'Ungültige Eingabe';
-  $('blockValidation').textContent=blocks.valid?'':'Bitte alle Blockzeiten als HH:MM eingeben (z. B. 01:35).';
+  $('blockValidation').textContent=blocks.valid?'':'Minuten müssen zwischen 00 und 59 liegen (z. B. 130 → 1:30).';
   return blocks;
 }
 function renderLegBlockInputs(values){
@@ -306,10 +313,23 @@ function renderLegBlockInputs(values){
   for(let i=0;i<count;i++){
     const label=document.createElement('label');label.textContent=`Leg ${i+1}`;
     const input=document.createElement('input');input.type='text';input.className='leg-block-input';
-    input.inputMode='text';input.placeholder='HH:MM';input.autocomplete='off';
-    input.setAttribute('aria-label',`Blockzeit Leg ${i+1}`);
+    input.inputMode='numeric';input.pattern='[0-9]*';input.placeholder='z. B. 130';input.autocomplete='off';
+    input.setAttribute('aria-label',`Blockzeit Leg ${i+1} in Stunden und Minuten`);
     input.value=old[i]??'';
     input.addEventListener('input',updateBlockTotal);
+    input.addEventListener('blur',()=>{
+      const parsed=parseLegBlock(input.value);
+      if(parsed.valid&&input.value.trim())input.value=parsed.formatted;
+      updateBlockTotal();
+    });
+    input.addEventListener('keydown',event=>{
+      if(event.key==='Enter'){
+        event.preventDefault();
+        input.blur();
+        const next=target.querySelectorAll('.leg-block-input')[i+1];
+        if(next)next.focus();
+      }
+    });
     label.appendChild(input);target.appendChild(label);
   }
   updateBlockTotal();
@@ -319,7 +339,7 @@ function formRecord(){
 }
 function saveRecord(){
   calculate();if(!currentResult)return alert('Bitte erst gültige Angaben eingeben.');
-  if(!updateBlockTotal().valid)return alert('Bitte Blockzeiten im Format HH:MM korrigieren.');
+  if(!updateBlockTotal().valid)return alert('Bitte Blockzeiten korrigieren (z. B. 130 für 1:30).');
   const rec=formRecord(),records=getRecords(),idx=records.findIndex(r=>r.id===rec.id);
   if(idx>=0)records[idx]=rec;else records.push(rec);
   records.sort((a,b)=>a.reportUtc-b.reportUtc);setRecords(records);
@@ -417,7 +437,7 @@ function renderDashboard(){
   });
 }
 function exportBackup(){
-  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.7',exportedAt:new Date().toISOString(),records:getRecords()};
+  const payload={format:'FAI-FTL-LOGBOOK-BACKUP',version:1,appVersion:'1.9.9',exportedAt:new Date().toISOString(),records:getRecords()};
   const stamp=new Date().toISOString().slice(0,10);downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`FTL_Backup_${stamp}.json`);
   showBackupMessage(`${payload.records.length} Datensätze wurden exportiert.`,'ok');
 }
@@ -787,7 +807,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.7';
+const CURRENT_APP_VERSION='1.9.9';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);

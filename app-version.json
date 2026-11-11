@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.7",
+  "appVersion": "1.9.9",
   "lastUpdated": "2026-11-11",
-  "notes": "Blockzeiten je Leg; Commander Discretion Duty-Limit-Korrektur"
+  "notes": "Blockzeiten per Ziffernblock eingeben: 130 → 1:30"
 }
