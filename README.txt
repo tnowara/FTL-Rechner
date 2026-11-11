@@ -20,3 +20,5 @@ Version 1.9.12: Positioning vor operativem Flug entfernt. Positioning nach ON-Bl
 Version 1.9.13: Fix für wiederkehrende Update-Anzeige. HTML referenziert versionierte JS/CSS URLs; SW lädt Programmdateien network-first; Update-Knopf führt erzwungene Navigation aus. Lokale Daten bleiben unverändert.
 
 1.9.14: Eigener Nummernblock für Leg-Blockzeiten (Ziffern, Löschen, Nächstes Leg, Fertig); Systemtastatur deaktiviert.
+
+Version 1.9.15: Positioning nach ON-Block (Checkbox + Minuten) entfernt. Duty-Ende wird ausschließlich aus separat eingegebenem Datum/Uhrzeit bestimmt; keine zusätzliche Addition. Bestehende Datensätze behalten ihre eingegebenen Duty-Ende-Felder.

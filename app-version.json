@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.14",
+  "appVersion": "1.9.15",
   "lastUpdated": "2026-11-11",
-  "notes": "Eigener Blockzeit-Nummernblock ohne iPadOS-Tastatur; 130 wird zu 1:30"
+  "notes": "Doppelte Positioning-Eingabe entfernt; Duty-Ende direkt aus separater Eingabe"
 }
