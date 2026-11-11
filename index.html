@@ -251,7 +251,6 @@
           <option value="commander">Commander’s Discretion (7.7)</option>
           <option value="standby">Standby vor FDP (7.8)</option>
           <option value="reduced_rest">Reduced Rest mit LBA-Genehmigung (7.5.3)</option>
-          <option value="post_positioning">Positioning nach letztem Sektor (7.4.8)</option>
         </select>
       </label>
     </div>
@@ -289,6 +288,15 @@
         </label>
       </div>
       <div id="specialRuleNote" class="rule-note">Berechnung nach der normalen OM-A-Basisregelung.</div>
+    </div>
+
+    <div class="leg-block-panel">
+      <strong>Positioning nach dem letzten operativen Sektor</strong>
+      <label class="check"><input id="postPositioningEnabled" type="checkbox"><span>Positioning nach ON-Block</span></label>
+      <label id="postPositioningDurationWrap" class="hidden">Dauer in Minuten
+        <input id="postPositioningMinutes" type="number" inputmode="numeric" min="0" step="1" value="0">
+      </label>
+      <small>Zählt zur Duty und zur Mindestruhe, nicht zur FDP. Unabhängig von der gewählten Sonderregelung.</small>
     </div>
 
     <div class="time-panel">
@@ -341,7 +349,6 @@
     <details>
       <summary>Weitere Angaben</summary>
       <div class="grid details-grid">
-        <label class="check"><input id="positioning" type="checkbox" checked><span>Positioning nach Reporting vor dem operativen Flug</span></label>
         <div class="auto-status-card">
           <span>Abwesenheit von Home-Base-Zeitzone</span>
           <strong id="awayStatus">Wird automatisch bestimmt</strong>
@@ -507,7 +514,7 @@
   <p>Berechnung nach FAI-FO-OMA Kapitel 7, Issue 5, Rev. 0 vom 08.11.2024. Bei genehmigungs-, ereignis- oder nachweispflichtigen Sonderregeln zeigt die App zusätzliche Warnhinweise; sie ersetzt keine Freigabe durch Crew Control, Commander oder LBA.</p>
 </section>
 </main>
-<footer>Version 1.9.10 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
+<footer>Version 1.9.12 · Speicherung ausschließlich lokal auf diesem Gerät</footer>
 <script src="app.js"></script>
 </body>
 </html>

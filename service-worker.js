@@ -1,4 +1,4 @@
-const CACHE = "ftl-logbook-v1.9.10";
+const CACHE = "ftl-logbook-v1.9.12";
 const SCOPE = self.registration.scope;
 const url = path => new URL(path, SCOPE).toString();
 

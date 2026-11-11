@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.10",
+  "appVersion": "1.9.12",
   "lastUpdated": "2026-11-11",
-  "notes": "Update-Hinweis nur bei tatsächlich höherer Versionsnummer; Offline-Cache-Status korrigiert"
+  "notes": "Unwirksame Positioning-vor-Flug-Checkbox entfernt; Positioning nach ON-Block unabhängig von Sonderregel-Dropdown als Checkbox und Minutenfeld"
 }
