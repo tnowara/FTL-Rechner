@@ -217,9 +217,10 @@ function calculate(){
   if(rule==='split2'){if(specialMin<120){valid=false;warnings.push('Der Break muss mindestens zwei Stunden dauern.')}dutyLimit=840}
   if(rule==='split3'){
     if(specialMin<180){valid=false;warnings.push('Der Break muss mindestens drei Stunden dauern.')}
-    limit=1080;
+    // OM-A 7.4.9.2 extends the continuous duty period, not the daily FDP.
+    limit=normalLimit;
     dutyLimit=1080;
-    warnings.push('Split Duty ≥3 h: zusammenhängende Dienstzeit bis 18:00 h. Wenn die normale tägliche FDP überschritten wird: max. 10 h Pilotieren, max. zwei Landungen nach dem Break und die 7-Tage-Beschränkungen nach OM-A 7.4.9.2 beachten.');
+    warnings.push('Split Duty ≥3 h: zusammenhängende Dienstzeit bis 18:00 h; das tägliche FDP-Limit bleibt separat maßgeblich. Weitere Bedingungen (max. 10 h Pilotieren, max. zwei Landungen nach dem Break, 7-Tage-Beschränkungen) prüfen.');
   }
   if(rule==='heavy_ambulance'){limit=1080;dutyLimit=1080;if(sectors>3){valid=false;warnings.push('Heavy Crew Ambulance ist auf maximal drei Sektoren begrenzt.')}warnings.push('Gleicher Duty-Startort und höchstens ein Escort Passenger erforderlich.')}
   if(rule==='heavy_pax_bd700'){limit=840;dutyLimit=840;warnings.push('Diese Genehmigung gilt ausschließlich für BD700 Passenger/Cargo.')}
@@ -242,6 +243,11 @@ function calculate(){
   const margin=limit-effectiveFdp,latestUtc=reportUtc+(limit-standbyDuty)*60000;
   const dutyStart=reportUtc-standbyDuty*60000;
   const dutyMinutes=Math.round((dutyEnd-dutyStart)/60000);
+  // OM-A 7.4.4(4): positioning and final work after the last flight
+  // are excluded from the daily duty cap, but count towards total duty/rest.
+  // User confirms that all work after ON-block falls in these categories.
+  const postFlightMinutes=Math.max(0,Math.round((dutyEnd-onUtc)/60000));
+  const dutyLimitRelevantMinutes=Math.round((onUtc-dutyStart)/60000);
   const startEndDiff=Math.abs(depOff-arrOff);
   let minimumRest=arrCode===homeCode?Math.max(dutyMinutes,720):Math.max(dutyMinutes,600);
   if(startEndDiff>=4)minimumRest=Math.max(minimumRest,840);
@@ -267,13 +273,13 @@ function calculate(){
   else if(previousCheck.restConflict){state='danger';title='MINDESTRUHE UNTERSCHRITTEN';warnings.unshift(`Das neue Reporting ${formatUtc(reportUtc)} liegt vor dem frühesten zulässigen Reporting ${formatUtc(previousCheck.earliest)} aus dem vorherigen Dienst.`)}
   else if(!valid){state='danger';title='SONDERREGEL UNZULÄSSIG'}
   else if(margin<0){state='danger';title='FDP-LIMIT ÜBERSCHRITTEN';warnings.unshift(`Überschreitung um ${formatDuration(-margin)}.`)}
-  else if(dutyMinutes>dutyLimit){state='danger';title='DUTY-LIMIT ÜBERSCHRITTEN';warnings.unshift(`Duty ${formatDuration(dutyMinutes)} überschreitet das für diese Auswahl angesetzte Limit ${formatDuration(dutyLimit)}.`)}
+  else if(dutyLimitRelevantMinutes>dutyLimit){state='danger';title='DUTY-LIMIT ÜBERSCHRITTEN';warnings.unshift(`Anrechenbare Duty ${formatDuration(dutyLimitRelevantMinutes)} überschreitet das für diese Auswahl angesetzte Limit ${formatDuration(dutyLimit)}. Nachbereitungszeit ${formatDuration(postFlightMinutes)} ist hierbei ausgenommen.`)}
   else if(margin<30){state='warn';title='KRITISCH';warnings.unshift(`Nur ${formatDuration(margin)} FDP-Reserve.`)}
   if(startEndDiff>=4)warnings.push('Mindestens vier Zeitzonen zwischen Beginn und Ende: Mindestruhe mindestens 14 Stunden.');
   if(rule==='reduced_rest')warnings.push('Reduced Rest darf nur mit schriftlicher LBA-Genehmigung angewandt werden.');
-  const msg=`FDP ${formatDuration(effectiveFdp)}, Limit ${formatDuration(limit)}, Duty ${formatDuration(dutyMinutes)}, Mindestruhe ${formatDuration(minimumRest)}.`+(warnings.length?' '+warnings.join(' '):'');
+  const msg=`FDP ${formatDuration(effectiveFdp)}, FDP-Limit ${formatDuration(limit)}, Gesamtduty ${formatDuration(dutyMinutes)}, für das tägliche Duty-Limit angerechnet ${formatDuration(dutyLimitRelevantMinutes)} (nach ON-Block ausgenommen: ${formatDuration(postFlightMinutes)}), Mindestruhe ${formatDuration(minimumRest)}.`+(warnings.length?' '+warnings.join(' '):'');
   showStatus(title,state,msg);
-  currentResult={depCode,arrCode,homeCode,depName:dep.n,arrName:arr.n,depTz:dep.t,arrTz:arr.t,homeTz:home.t,reportUtc,onUtc,plannedFdp:effectiveFdp,sectors,rule,specialMinutes:specialMin,limit,normalFdpLimit:normalLimit,margin,latestUtc,woclMinutes:wocl.minutes,woclReduction:wocl.reduction,woclTz,dutyEnd,dutyMinutes,minimumRest,earliestNextReport:earliest,startEndTimeZoneDiff:startEndDiff,homeTzAbsenceMinutes:absence.minutes,homeTzAbsenceKnown:absence.known,previousDutyId:previousCheck.previous?.id||null,previousDutyConflict:previousCheck.overlap||previousCheck.restConflict,status:title,statusClass:state};
+  currentResult={depCode,arrCode,homeCode,depName:dep.n,arrName:arr.n,depTz:dep.t,arrTz:arr.t,homeTz:home.t,reportUtc,onUtc,plannedFdp:effectiveFdp,sectors,rule,specialMinutes:specialMin,limit,normalFdpLimit:normalLimit,margin,latestUtc,woclMinutes:wocl.minutes,woclReduction:wocl.reduction,woclTz,dutyEnd,dutyMinutes,dutyLimitRelevantMinutes,postFlightMinutes,minimumRest,earliestNextReport:earliest,startEndTimeZoneDiff:startEndDiff,homeTzAbsenceMinutes:absence.minutes,homeTzAbsenceKnown:absence.known,previousDutyId:previousCheck.previous?.id||null,previousDutyConflict:previousCheck.overlap||previousCheck.restConflict,status:title,statusClass:state};
 }
 function clearResult(){currentResult=null;['plannedFdpValue','appliedRule','baseLimit','latestEnd','plannedMargin','woclReduction','homeTzAbsence','previousDutyCheck','dutyDuration','minimumRest','earliestNextReport'].forEach(id=>$(id).textContent='–')}
 function showStatus(title,state,msg){$('statusPill').className=`status ${state}`;$('statusPill').textContent=title;$('message').textContent=msg}
@@ -864,7 +870,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.17';
+const CURRENT_APP_VERSION='1.9.18';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);
@@ -945,7 +951,7 @@ function showOfflineReadyMessage(){
   navigator.serviceWorker.ready.then(async registration=>{
     try{
       const cacheNames=await caches.keys();
-      const ready=cacheNames.some(name=>name==='ftl-logbook-v1.9.17');
+      const ready=cacheNames.some(name=>name==='ftl-logbook-v1.9.18');
       if(ready&&!navigator.onLine){
         showUpdateStatus('Offline-Modus aktiv. Die App wird aus dem Gerätespeicher geladen.','success',false);
       }

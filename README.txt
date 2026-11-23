@@ -25,4 +25,6 @@ Version 1.9.15: Positioning nach ON-Block (Checkbox + Minuten) entfernt. Duty-En
 
 1.9.16: Weitere Angaben (Abwesenheit Home-Base-Zeitzone und Notiz) dauerhaft sichtbar statt aufklappbarem Menü.
 
-Version 1.9.17: JS/CSS-URLs in HTML und Service Worker auf v1.9.17 korrigiert (vorher irrtümlich v1.9.14); Offline-Statuscache angepasst.
+Version 1.9.18: JS/CSS-URLs in HTML und Service Worker auf v1.9.18 korrigiert (vorher irrtümlich v1.9.14); Offline-Statuscache angepasst.
+
+1.9.18: Post-flight work/positioning after last ON-block is excluded from daily duty-limit check, but retained in total duty and rest. Split Duty >=3h no longer incorrectly sets FDP cap to 18h.

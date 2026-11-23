@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.17",
-  "lastUpdated": "2026-11-11",
-  "notes": "Fix: HTML und Offline-Shell laden versionierte aktuelle JS/CSS-Dateien; Cache-Status angepasst"
+  "appVersion": "1.9.18",
+  "lastUpdated": "2026-11-23",
+  "notes": "OM-A 7.4.4: Nach ON-Block Abschlussarbeiten/Positioning aus 14-h-Duty-Grenze ausgenommen; Gesamtduty bleibt für Ruhezeit. Split3 FDP-Limit separat."
 }
