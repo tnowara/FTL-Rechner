@@ -447,6 +447,27 @@ function renderArchive(){
   $('emptyState').textContent=($('archiveSearch')?.value||'').trim()?'Keine passenden Datensätze gefunden.':'Für diesen Monat sind keine Datensätze gespeichert.';
   $('emptyState').classList.toggle('hidden',rs.length>0);$('recordsTable').classList.toggle('hidden',rs.length===0);$('monthCount').textContent=rs.length;$('monthFdp').textContent=formatDuration(rs.reduce((s,r)=>s+(r.plannedFdp||0),0));$('monthBlock').textContent=formatDuration(rs.reduce((s,r)=>s+(r.blockMinutes||0),0));
 }
+// Historical entries store the evaluation text at save time. Correct the
+// known obsolete 14-hour warning on display without modifying stored records.
+function displayStatusForRecord(r){
+  const old=String(r.status||'');
+  if(old!=='DUTY-LIMIT ÜBERSCHRITTEN')return {text:old||'Gespeichert',cls:r.statusClass};
+  const rule=r.specialRule||r.rule||'basic';
+  if(!Number.isFinite(r.reportUtc)||!Number.isFinite(r.onUtc)||!Number.isFinite(r.dutyEnd))
+    return {text:'Erneute Prüfung erforderlich',cls:'warn'};
+  const postFlight=Math.max(0,Math.round((r.dutyEnd-r.onUtc)/60000));
+  const relevant=Math.round((r.onUtc-r.reportUtc)/60000);
+  const cap=rule==='split3'||rule==='heavy_ambulance'?1080:840;
+  if(rule==='commander')return {text:'Erneute Prüfung erforderlich',cls:'warn'};
+  if(rule==='heavy_pax_bd700'||rule==='standby'||rule==='reduced_rest')
+    return {text:'Erneute Prüfung erforderlich',cls:'warn'};
+  if(relevant>cap)return {text:old,cls:'danger'};
+  const fdp=Number(r.plannedFdp),limit=Number(r.limit);
+  if(!Number.isFinite(fdp)||!Number.isFinite(limit))
+    return {text:'Erneute Prüfung erforderlich',cls:'warn'};
+  if(fdp>limit)return {text:'FDP-LIMIT ÜBERSCHRITTEN',cls:'danger'};
+  return limit-fdp<30?{text:'KRITISCH',cls:'warn'}:{text:'RECHNERISCH INNERHALB',cls:'ok'};
+}
 function statusClassForRecord(r){return r.statusClass==='danger'?'danger':r.statusClass==='warn'?'warn':'ok'}
 function dashboardRecordTime(r){
   if(isDutyRecord(r)&&Number.isFinite(r.reportUtc))return r.reportUtc;
@@ -468,7 +489,8 @@ function renderDashboard(){
   const lastDuty=records.find(isDutyRecord);
   const status=$('dashboardStatus');
   if(lastDuty){
-    status.textContent=lastDuty.status||'Gespeichert';status.className=`dashboard-status ${statusClassForRecord(lastDuty)}`;
+    const displayed=displayStatusForRecord(lastDuty);
+    status.textContent=displayed.text;status.className=`dashboard-status ${displayed.cls==='danger'?'danger':displayed.cls==='warn'?'warn':'ok'}`;
     $('dashboardLastRoute').textContent=`${lastDuty.depCode||'–'} → ${lastDuty.arrCode||'–'}${lastDuty.flightRef?' · '+lastDuty.flightRef:''}`;
     $('dashboardLastDate').textContent=formatDate(lastDuty.date);
     $('dashboardNextReport').textContent=Number.isFinite(lastDuty.earliestNextReport)?formatUtc(lastDuty.earliestNextReport):'–';
@@ -488,7 +510,7 @@ function renderDashboard(){
     row.dataset.id=r.id;
 
     if(isDutyRecord(r)){
-      row.innerHTML=`<span><strong>${escapeHtml(r.depCode||'–')} → ${escapeHtml(r.arrCode||'–')}</strong><small>${formatDate(r.date)}${r.flightRef?' · '+escapeHtml(r.flightRef):''}</small></span><span class="recent-values"><strong>${formatDuration(r.plannedFdp)}</strong><small>${escapeHtml(r.status||'')}</small></span>`;
+      row.innerHTML=`<span><strong>${escapeHtml(r.depCode||'–')} → ${escapeHtml(r.arrCode||'–')}</strong><small>${formatDate(r.date)}${r.flightRef?' · '+escapeHtml(r.flightRef):''}</small></span><span class="recent-values"><strong>${formatDuration(r.plannedFdp)}</strong><small>${escapeHtml(displayStatusForRecord(r).text)}</small></span>`;
       row.onclick=()=>editRecord(r.id);
     }else{
       const type=r.entryType||'other';
@@ -870,7 +892,7 @@ async function init(){
 let deferredPrompt;
 let swRegistration=null;
 let waitingWorker=null;
-const CURRENT_APP_VERSION='1.9.18';
+const CURRENT_APP_VERSION='1.9.19';
 
 function compareVersions(a,b){
   const pa=String(a||'0').split('.').map(n=>parseInt(n,10)||0);
@@ -951,7 +973,7 @@ function showOfflineReadyMessage(){
   navigator.serviceWorker.ready.then(async registration=>{
     try{
       const cacheNames=await caches.keys();
-      const ready=cacheNames.some(name=>name==='ftl-logbook-v1.9.18');
+      const ready=cacheNames.some(name=>name==='ftl-logbook-v1.9.19');
       if(ready&&!navigator.onLine){
         showUpdateStatus('Offline-Modus aktiv. Die App wird aus dem Gerätespeicher geladen.','success',false);
       }

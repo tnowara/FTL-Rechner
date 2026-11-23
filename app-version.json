@@ -1,5 +1,5 @@
 {
-  "appVersion": "1.9.18",
+  "appVersion": "1.9.19",
   "lastUpdated": "2026-11-23",
-  "notes": "OM-A 7.4.4: Nach ON-Block Abschlussarbeiten/Positioning aus 14-h-Duty-Grenze ausgenommen; Gesamtduty bleibt für Ruhezeit. Split3 FDP-Limit separat."
+  "notes": "Dashboard zeigt gespeicherte alte Duty-Limit-Status nach neuer ON-Block-Regel korrekt an, ohne Daten zu verändern"
 }
